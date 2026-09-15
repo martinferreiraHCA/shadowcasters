@@ -1,9 +1,9 @@
 # Shadow Casters — Taller de sombras
 
-Plataforma web para niños y adolescentes, con la distribución y la estética de
-**Scratch**: una barra lateral de bloques de colores, un **lienzo** de trabajo al
-centro y un **escenario** de previsualización a la derecha. Todo ocurre en una
-sola pantalla. Los estudiantes arman su silueta con fotos (sin fondo), textos y
+Editor gráfico web para niños y adolescentes, con la distribución y los colores
+de **Scratch** pero pensado para diseñar: un panel lateral de **elementos**
+(fotos, textos, formas) que se tiran al **lienzo** de trabajo, y una **vista
+previa** a la derecha. Todo ocurre en una sola pantalla. Los estudiantes arman su silueta con fotos (sin fondo), textos y
 formas, ven la sombra proyectada y descargan el **SVG listo para la Cricut o la
 láser**. Inspirado en [Shadow Scenes](https://k12maker.mit.edu/project/shadow-scenes)
 (MIT K12 Maker) y en la página *Sombras recortadas* del
@@ -26,16 +26,17 @@ Interfaz en **español** (principal) e **inglés** (botón ES / EN).
   - *Mis proyectos en esta computadora*: galería con miniaturas para seguir donde
     se dejó.
 - **Taller** (una pantalla, como Scratch)
-  - Bloques por categoría: Imágenes (subir / cámara, quitar fondo, silueta),
-    Texto (fuentes, tamaño, espaciado), Formas, Editar (suma/resta, centrar,
-    espejar, orden), Pieza (tamaño en mm, base/marco/ventana, espejo) y Cortar
-    (tapete, SVG, PNG, guardar/abrir `.json`). Se hace clic o se **arrastran al
-    lienzo**.
+  - Panel por categoría: Imágenes (subir / cámara, quitar fondo, silueta),
+    Texto (galería de tipografías, tamaño, espaciado), Formas (galería con el
+    dibujo de cada forma), Ajustar (suma/resta, centrar, espejar, orden), Pieza
+    (tamaño en mm, base/marco/ventana, espejo) y Cortar (tapete, SVG, PNG,
+    guardar/abrir `.json`). Los elementos se tocan o se **arrastran al lienzo**;
+    los ajustes del elemento seleccionado aparecen como controles comunes.
   - Lienzo con manijas para mover, escalar y girar; zoom; arrastrar o pegar
     imágenes; atajos de teclado.
-  - Escenario con la **pieza a tamaño real y sus medidas**, la **sombra
-    proyectada** (bandera verde; el mouse mueve la luz) y el **tapete** de la
-    cortadora con avisos (piezas sueltas, detalles finos).
+  - Vista previa con la **pieza a tamaño real y sus medidas**, la **sombra
+    proyectada** (el mouse mueve la luz) y el **tapete** de la cortadora con
+    avisos (piezas sueltas, detalles finos).
   - Lista de capas con miniaturas (como los objetos de Scratch) y panel de
     información de la capa.
 - **Guardado**: automático en el navegador (IndexedDB) y descarga como
@@ -73,8 +74,8 @@ La cámara y el portapapeles requieren `https://` o `localhost`.
 
 ```
 index.html        pantalla única: portal, panel del docente y taller
-css/estilo.css    estética Scratch (colores por categoría, bloques, escenario)
-js/app.js         el editor: paleta de bloques, lienzo, escenario, capas
+css/estilo.css    estética (colores por categoría, galerías, vista previa)
+js/app.js         el editor: panel de elementos y ajustes, lienzo, vista previa, capas
 js/clase.js       portal, clases del docente, sincronización, guardado
 js/aula.js        red (PeerJS) y almacenamiento (IndexedDB)
 js/render.js      modelo del proyecto, quitar fondo, texto, formas, composición

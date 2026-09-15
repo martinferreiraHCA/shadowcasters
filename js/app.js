@@ -1,6 +1,6 @@
-// Shadow Casters — taller de sombras con la distribución de Scratch:
-// bloques a la izquierda (categorías + paleta), lienzo al centro y
-// escenario (previsualización) + capas a la derecha. Todo en una pantalla.
+// Shadow Casters — editor gráfico de sombras con la distribución de Scratch:
+// panel de elementos a la izquierda (categorías + galerías y ajustes), lienzo
+// al centro y vista previa + capas a la derecha. Todo en una pantalla.
 //
 // El modelo del proyecto y el dibujo viven en render.js / vector.js (mismo
 // formato .json que «Sombras recortadas» del Generador de Actividades).
@@ -52,7 +52,7 @@ const estado = {
   recortarSvg: true,
   corte: null,             // último vectorizado
   arrastre: null,
-  puntoSoltar: null        // dónde soltaron el bloque «subir imagen»
+  puntoSoltar: null        // dónde soltaron el elemento «subir imagen»
 };
 
 // ------------------------------------------------------------------
@@ -280,7 +280,7 @@ function dibujarLienzo() {
   $('lienzoVacio').style.display = p.capas.length ? 'none' : '';
   const zoomTxt = Math.round(estado.zoom * 100) + ' %';
   $('lienzoPie').innerHTML = `<span>${t('Pieza')} <b>${pz.anchoMm} × ${pz.altoMm} mm</b></span><span>${t(p.capas.length === 1 ? '{n} capa' : '{n} capas', { n: p.capas.length })}</span>` +
-    (capa ? `<span>${t('Seleccionada:')} <b>${escapar(capa.nombre)}</b> (${redondear(cajaCapa(capa).w)} × ${redondear(cajaCapa(capa).h)} mm)</span>` : `<span>${t('Hacé clic en una capa para editarla · arrastrá el fondo para moverte')}</span>`) +
+    (capa ? `<span>${t('Seleccionada:')} <b>${escapar(capa.nombre)}</b> (${redondear(cajaCapa(capa).w)} × ${redondear(cajaCapa(capa).h)} mm)</span>` : `<span>${t('Hacé clic en un elemento para editarlo · arrastralo para moverlo')}</span>`) +
     `<span style="margin-left:auto">zoom ${zoomTxt}</span>`;
 }
 
@@ -331,10 +331,8 @@ canvas.addEventListener('pointerdown', e => {
     estado.arrastre = { tipo: 'mover', capa: golpe, dx: golpe.x - p.x, dy: golpe.y - p.y, movio: false };
     return;
   }
-  // fondo: deseleccionar y mover la vista
+  // clic en el fondo: deseleccionar
   if (estado.sel && estado.sel !== 'pieza') seleccionar(null);
-  estado.arrastre = { tipo: 'pan', x0: e.clientX, y0: e.clientY, pan0: { ...estado.pan } };
-  zona.classList.add('lienzo__zona--mano');
 });
 
 canvas.addEventListener('pointermove', e => {
@@ -350,11 +348,6 @@ canvas.addEventListener('pointermove', e => {
     return;
   }
   const p = puntoDeEvento(e);
-  if (a.tipo === 'pan') {
-    estado.pan = { x: a.pan0.x + (e.clientX - a.x0), y: a.pan0.y + (e.clientY - a.y0) };
-    redibujarLienzo();
-    return;
-  }
   const capa = a.capa;
   if (a.tipo === 'mover') {
     let x = p.x + a.dx, y = p.y + a.dy;
@@ -395,8 +388,6 @@ function soltar(e) {
   const a = estado.arrastre;
   if (!a) return;
   estado.arrastre = null;
-  zona.classList.remove('lienzo__zona--mano');
-  if (a.tipo === 'pan') return;
   if (a.tipo === 'mover' && !a.movio) { estado.historial.pop(); return; }
   cambio(false);
 }
@@ -407,9 +398,9 @@ canvas.addEventListener('dblclick', e => {
   if (capa && capa.tipo === 'texto') { seleccionar(capa.id); irACategoria('texto'); const ta = document.querySelector('#paleta textarea[data-prop="texto"]'); if (ta) { ta.focus({ preventScroll: true }); ta.select(); } }
 });
 canvas.addEventListener('wheel', e => {
+  if (!(e.ctrlKey || e.metaKey)) return;
   e.preventDefault();
-  if (e.ctrlKey || e.metaKey) ajustarZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15);
-  else { estado.pan.x -= e.deltaX; estado.pan.y -= e.deltaY; redibujarLienzo(); }
+  ajustarZoom(e.deltaY < 0 ? 1.15 : 1 / 1.15);
 }, { passive: false });
 
 function ajustarZoom(factor) {
@@ -461,6 +452,8 @@ document.addEventListener('paste', e => {
 });
 
 new ResizeObserver(() => { redibujarLienzo(); redibujarEscenario(); }).observe(zona);
+// el taller ocupa la pantalla entera: nada debe desplazar el documento
+window.addEventListener('scroll', () => { if (document.body.dataset.pantalla !== 'portal' && (window.scrollX || window.scrollY)) window.scrollTo(0, 0); }, { passive: true });
 
 // ------------------------------------------------------------------
 // Escenario (previsualización): pieza | sombra | tapete
@@ -648,13 +641,10 @@ escenario.addEventListener('pointerleave', () => { if (estado.vista === 'sombra'
 function cambiarVista(v) {
   estado.vista = v;
   document.querySelectorAll('[data-vista]').forEach(b => b.classList.toggle('vista--activa', b.dataset.vista === v));
-  $('btnProyectar').classList.toggle('ctrl--activa', v === 'sombra');
-  if (v !== 'tapete') $('escenarioAvisos').innerHTML = '';
+    if (v !== 'tapete') $('escenarioAvisos').innerHTML = '';
   redibujarEscenario();
 }
 document.querySelectorAll('[data-vista]').forEach(b => b.addEventListener('click', () => cambiarVista(b.dataset.vista)));
-$('btnProyectar').addEventListener('click', () => cambiarVista('sombra'));
-$('btnParar').addEventListener('click', () => cambiarVista('pieza'));
 document.querySelectorAll('[data-tam]').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('[data-tam]').forEach(x => x.classList.toggle('tam--activa', x === b));
   $('taller').classList.toggle('taller--escenario-grande', b.dataset.tam === 'grande');
@@ -678,7 +668,7 @@ function refrescarInfo() {
   $('tilePieza').classList.toggle('pieza-tile--sel', estado.sel === 'pieza');
   if (!capa) {
     const n = $('infoNombre');
-    if (document.activeElement !== n) n.value = estado.sel === 'pieza' ? t('La pieza: ajustala con los bloques naranjas') : t('Ninguna capa seleccionada');
+    if (document.activeElement !== n) n.value = estado.sel === 'pieza' ? t('La pieza: ajustala en el panel «Pieza»') : t('Ninguna capa seleccionada');
     n.disabled = true;
     return;
   }
@@ -786,10 +776,11 @@ function agregarCapa(capa, punto) {
   estado.sel = capa.id;
   cambio(true);
 }
-function agregarTexto(texto, punto) {
+function agregarTexto(texto, punto, fuente) {
   const pz = estado.proyecto.pieza;
   const n = estado.proyecto.capas.filter(c => c.tipo === 'texto').length + 1;
   const capa = nuevaCapa('texto', { nombre: `${t('Texto')} ${n}`, texto: texto || (estado.proyecto.autor ? estado.proyecto.autor.split(' ')[0].toUpperCase() : t('HOLA')), x: pz.anchoMm / 2, y: pz.altoMm / 2, tamMm: Math.max(8, Math.round(pz.anchoMm / 6)) });
+  if (fuente) capa.fuente = fuente;
   cargarFuente(capa.fuente).then(() => { redibujarLienzo(); redibujarEscenario(); refrescarMiniaturas(); });
   agregarCapa(capa, punto);
   irACategoria('texto');
@@ -836,7 +827,7 @@ async function agregarImagen(archivo, reemplazarId) {
     const n = estado.proyecto.capas.filter(c => c.tipo === 'imagen').length + 1;
     const capa = nuevaCapa('imagen', { nombre: ((archivo && archivo.name) || `${t('Foto')} ${n}`).replace(/\.[a-z0-9]+$/i, '').slice(0, 24) || `${t('Foto')} ${n}`, src, ancho, alto, x: pz.anchoMm / 2, y: pz.altoMm / 2, w: ancho * s, h: alto * s });
     let frac = fraccionFigura(capa);
-    let aviso = t('¡Imagen agregada! Si quedó mal el fondo, ajustalo con los bloques violetas.');
+    let aviso = t('¡Imagen agregada! Si quedó mal el fondo, ajustalo en el panel de la izquierda.');
     if (frac != null && frac < 0.01) { capa.proc.tolerancia = 18; frac = fraccionFigura(capa); }
     if (frac != null && (frac < 0.01 || frac > 0.97)) {
       capa.proc.fondo = 'ninguno';
@@ -886,172 +877,201 @@ function terminarGotero() {
 }
 
 // ------------------------------------------------------------------
-// Paleta de bloques
+// Panel de elementos y ajustes (barra lateral)
+//
+// Como en un editor gráfico: galerías de elementos (fotos, textos, formas)
+// que se hacen clic o se arrastran al lienzo, y los ajustes del elemento
+// seleccionado como controles comunes.
 // ------------------------------------------------------------------
 const CATEGORIAS = [
-  { id: 'imagenes', nombre: 'Imágenes', color: 'var(--cat-imagenes)', borde: 'var(--cat-imagenes-b)', icono: '🖼' },
-  { id: 'texto', nombre: 'Texto', color: 'var(--cat-texto)', borde: 'var(--cat-texto-b)', icono: '🔤' },
-  { id: 'formas', nombre: 'Formas', color: 'var(--cat-formas)', borde: 'var(--cat-formas-b)', icono: '⭐' },
-  { id: 'editar', nombre: 'Editar', color: 'var(--cat-editar)', borde: 'var(--cat-editar-b)', icono: '✋' },
-  { id: 'pieza', nombre: 'Pieza', color: 'var(--cat-pieza)', borde: 'var(--cat-pieza-b)', icono: '✂' },
-  { id: 'cortar', nombre: 'Cortar', color: 'var(--cat-cortar)', borde: 'var(--cat-cortar-b)', icono: '⬇' }
+  { id: 'imagenes', nombre: 'Imágenes', color: 'var(--cat-imagenes)', borde: 'var(--cat-imagenes-b)' },
+  { id: 'texto', nombre: 'Texto', color: 'var(--cat-texto)', borde: 'var(--cat-texto-b)' },
+  { id: 'formas', nombre: 'Formas', color: 'var(--cat-formas)', borde: 'var(--cat-formas-b)' },
+  { id: 'editar', nombre: 'Ajustar', color: 'var(--cat-editar)', borde: 'var(--cat-editar-b)' },
+  { id: 'pieza', nombre: 'Pieza', color: 'var(--cat-pieza)', borde: 'var(--cat-pieza-b)' },
+  { id: 'cortar', nombre: 'Cortar', color: 'var(--cat-cortar)', borde: 'var(--cat-cortar-b)' }
 ];
 
-// argumentos (los óvalos blancos dentro de los bloques)
-const argNum = (prop, v, min, max, paso, unidad) => `<span class="arg"><input type="number" data-prop="${prop}" value="${redondear(v, 1)}" min="${min}" max="${max}" step="${paso}">${unidad ? `<em>${unidad}</em>` : ''}</span>`;
-const argRango = (prop, v, min, max, paso, unidad) => `<span class="arg arg--rango"><input type="range" data-prop="${prop}" value="${v}" min="${min}" max="${max}" step="${paso}"><output>${v}${unidad || ''}</output></span>`;
-const argCheck = (prop, v) => `<span class="arg arg--check"><input type="checkbox" data-prop="${prop}" ${v ? 'checked' : ''}></span>`;
-const argSelect = (prop, v, lista) => `<select data-prop="${prop}">${lista.map(o => `<option value="${o.id}" ${String(o.id) === String(v) ? 'selected' : ''}>${escapar(o.nombre)}</option>`).join('')}</select>`;
-const argTexto = (prop, v, ancho) => `<span class="arg"><input type="text" class="${ancho ? 'arg--ancho' : ''}" data-prop="${prop}" value="${escapar(v)}"></span>`;
+// controles
+const ctlNum = (prop, v, min, max, paso, unidad) => `<span class="ctl-num"><input type="number" data-prop="${prop}" value="${redondear(v, 1)}" min="${min}" max="${max}" step="${paso}">${unidad ? `<em>${unidad}</em>` : ''}</span>`;
+const ctlRango = (prop, v, min, max, paso, unidad) => `<span class="ctl-rango"><input type="range" data-prop="${prop}" value="${v}" min="${min}" max="${max}" step="${paso}"><output>${v}${unidad || ''}</output></span>`;
+const ctlCheck = (prop, v, texto) => `<label class="ctl-check"><input type="checkbox" data-prop="${prop}" ${v ? 'checked' : ''}><span>${texto}</span></label>`;
+const ctlSelect = (prop, v, lista) => `<select class="ctl-select" data-prop="${prop}">${lista.map(o => `<option value="${o.id}" ${String(o.id) === String(v) ? 'selected' : ''}>${escapar(o.nombre)}</option>`).join('')}</select>`;
 
-function bloque(o) {
-  // o: { cat, icono, html, accion, arrastre, deshabilitado, titulo, clase, sombrero }
+const seccion = (id, titulo, nota) => `<h3 class="panel__titulo" ${id ? `data-cat="${id}"` : ''}>${titulo}</h3>${nota ? `<p class="panel__nota">${nota}</p>` : ''}`;
+const nota = texto => `<p class="panel__nota panel__nota--aviso">${texto}</p>`;
+const grupo = (titulo, filas) => `<div class="ajustes"><div class="ajustes__titulo">${titulo}</div>${filas}</div>`;
+const fila = (etiqueta, control, ayuda) => `<label class="ajuste"><span class="ajuste__et">${etiqueta}${ayuda ? `<small>${ayuda}</small>` : ''}</span>${control}</label>`;
+const filaLibre = (etiqueta, contenido) => `<div class="ajuste"><span class="ajuste__et">${etiqueta}</span>${contenido}</div>`;
+
+// un elemento de la galería: se hace clic (o se arrastra al lienzo)
+function elemento(o) {
   const cat = CATEGORIAS.find(c => c.id === o.cat);
-  const clases = ['bloque', o.accion ? 'bloque--accion' : '', o.arrastre ? 'bloque--arrastrable' : '', o.deshabilitado ? 'bloque--deshabilitado' : '', o.sombrero ? 'bloque--sombrero' : '', o.clase || ''].filter(Boolean).join(' ');
-  const estilo = o.clase && o.clase.includes('bloque--peligro') ? '' : `style="--c:${cat.color};--cb:${cat.borde}"`;
-  return `<div class="${clases}" ${estilo} ${o.accion ? `data-accion="${o.accion}"` : ''} ${o.arrastre ? `data-arrastre='${JSON.stringify(o.arrastre)}'` : ''} ${o.titulo ? `title="${escapar(o.titulo)}"` : ''}>${o.icono ? `<span class="bloque__icono">${o.icono}</span>` : ''}${o.html}</div>`;
+  const clases = ['elemento', o.grande ? 'elemento--grande' : '', o.activo ? 'elemento--activo' : '', o.clase || ''].filter(Boolean).join(' ');
+  const visual = o.imagen ? `<img class="elemento__img" src="${o.imagen}" alt="">` : `<span class="elemento__icono" ${o.estilo ? `style="${o.estilo}"` : ''}>${o.icono || ''}</span>`;
+  return `<button type="button" class="${clases}" style="--c:${cat.color};--cb:${cat.borde}" data-accion="${o.accion}" ${o.arrastre ? `data-arrastre='${JSON.stringify(o.arrastre)}'` : ''} ${o.titulo ? `title="${escapar(o.titulo)}"` : ''}>${visual}<span class="elemento__texto">${o.texto}</span></button>`;
 }
-const t_ = s => `<span class="bloque__texto">${t(s)}</span>`;
-const salto = '<span class="bloque__salto"></span>';
+// un botón de acción del panel de ajustes
+const accionBtn = (accion, icono, texto, extra) => `<button type="button" class="accion ${extra && extra.clase || ''}" data-accion="${accion}" ${extra && extra.titulo ? `title="${escapar(extra.titulo)}"` : ''}><span class="accion__icono">${icono}</span><span>${texto}</span></button>`;
 
-function paletaImagenes() {
+// icono de cada forma, dibujado con la forma real
+const cacheIconos = new Map();
+function iconoForma(id, color) {
+  const clave = id + '|' + color;
+  if (cacheIconos.has(clave)) return cacheIconos.get(clave);
+  const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+  const c = cv.getContext('2d'); c.fillStyle = color; c.translate(6, 6); c.scale(52, 52);
+  if (id === 'puente') c.fillRect(0, 0.42, 1, 0.16);
+  else c.fill(pathDeForma(id, { radio: 15, puntas: 5, grosor: 25, interior: 50 }), 'evenodd');
+  const url = cv.toDataURL();
+  cacheIconos.set(clave, url);
+  return url;
+}
+
+function panelImagenes() {
   const capa = capaSel();
   const esImg = capa && capa.tipo === 'imagen';
-  let html = `<h3 class="paleta__titulo" data-cat="imagenes">🖼 ${t('Imágenes')}</h3><p class="paleta__nota">${t('Fotos o dibujos. Les sacamos el fondo y quedan como silueta negra.')}</p>`;
-  html += bloque({ cat: 'imagenes', icono: '📁', html: t_('subir una imagen'), accion: 'imagen', arrastre: { tipo: 'imagen' }, titulo: t('Elegí una foto o dibujo de tu computadora (también podés arrastrarla al lienzo o pegarla con Ctrl+V)') });
-  html += bloque({ cat: 'imagenes', icono: '📷', html: t_('sacar una foto'), accion: 'camara', titulo: t('Usa la cámara. Ideal para hacer tu propia silueta.') });
-  html += `<div class="paleta__separador"></div><h3 class="paleta__titulo">${t('Quitar el fondo')}</h3>`;
-  if (!esImg) html += `<p class="paleta__nota">${t('Seleccioná una imagen en el lienzo para usar estos bloques.')}</p>`;
-  const p = esImg ? capa.proc : { fondo: 'auto', tolerancia: 40, silueta: 'alfa', umbral: 128, invertir: false, suavizarMm: 0, engrosarMm: 0, limpiarMm: 1 };
-  const d = !esImg;
-  if (esImg) {
-    const frac = fraccionFigura(capa);
-    if (frac != null) {
-      const pct = Math.round(frac * 100);
-      let nota = '';
-      if (frac < 0.01) nota = t('No quedó casi nada. Bajá la tolerancia, o elegí «no quitar nada» y «sólo lo oscuro».');
-      else if (frac > 0.97) nota = t('Quedó toda la foto como un bloque. Subí la tolerancia, usá el gotero sobre el fondo, o «sólo lo oscuro» si es un dibujo.');
-      html += `<div class="bloque__aviso ${nota ? 'bloque__aviso--mal' : ''}" style="background:${nota ? '#FFE1E6' : '#EEF9EE'};color:${nota ? '#8a1f36' : '#1f5f2a'};margin-bottom:.3rem">${t('<b>{pct} %</b> de la imagen queda como figura.', { pct })}${nota ? ' ' + nota : ''}</div>`;
-    }
+  let html = seccion('imagenes', '🖼 ' + t('Imágenes'), t('Subí una foto o un dibujo: le sacamos el fondo y queda como silueta negra.'));
+  html += `<div class="elementos elementos--2">`;
+  html += elemento({ cat: 'imagenes', icono: '📁', texto: t('Subir imagen'), accion: 'imagen', arrastre: { tipo: 'imagen' }, grande: true, titulo: t('Elegí una foto o dibujo de tu computadora (también podés arrastrarla al lienzo o pegarla con Ctrl+V)') });
+  html += elemento({ cat: 'imagenes', icono: '📷', texto: t('Sacar foto'), accion: 'camara', grande: true, titulo: t('Usa la cámara. Ideal para hacer tu propia silueta.') });
+  html += `</div>`;
+  if (!esImg) return html + nota(t('Seleccioná una imagen del lienzo para ajustar su fondo y su silueta.'));
+  const p = capa.proc;
+  const frac = fraccionFigura(capa);
+  if (frac != null) {
+    const pct = Math.round(frac * 100);
+    let aviso = '';
+    if (frac < 0.01) aviso = t('No quedó casi nada. Bajá la tolerancia, o elegí «no quitar nada» y «sólo lo oscuro».');
+    else if (frac > 0.97) aviso = t('Quedó toda la foto como un bloque. Subí la tolerancia, usá el gotero sobre el fondo, o «sólo lo oscuro» si es un dibujo.');
+    html += `<div class="panel__estado ${aviso ? 'panel__estado--mal' : 'panel__estado--ok'}">${t('<b>{pct} %</b> de la imagen queda como figura.', { pct })}${aviso ? ' ' + aviso : ''}</div>`;
   }
-  html += bloque({ cat: 'imagenes', html: t_('quitar el fondo') + argSelect('proc.fondo', p.fondo, [{ id: 'auto', nombre: t('automático (desde los bordes)') }, { id: 'color', nombre: t('de un color que elijo') }, { id: 'ninguno', nombre: t('no quitar nada') }]), deshabilitado: d });
-  if (p.fondo !== 'ninguno') html += bloque({ cat: 'imagenes', html: t_('tolerancia') + argRango('proc.tolerancia', p.tolerancia, 0, 160, 1), deshabilitado: d, titulo: t('Cuánto puede variar el color del fondo para que igual se quite') });
-  if (p.fondo === 'color') html += bloque({ cat: 'imagenes', icono: '💧', html: t_(estado.gotero ? 'hacé clic en el fondo de la foto…' : 'elegir el color del fondo') + `<span class="arg arg--muestra" style="background:${p.colorClave ? `rgb(${p.colorClave.join(',')})` : 'transparent'}"></span>`, accion: 'gotero', deshabilitado: d, clase: estado.gotero ? 'bloque--ejecutando' : '' });
-  html += `<h3 class="paleta__titulo">${t('Pasar a silueta')}</h3>`;
-  html += bloque({ cat: 'imagenes', html: t_('la figura es') + argSelect('proc.silueta', p.silueta, [{ id: 'alfa', nombre: t('todo lo que quedó') }, { id: 'oscuro', nombre: t('sólo lo oscuro (dibujo a lápiz)') }, { id: 'claro', nombre: t('sólo lo claro') }]), deshabilitado: d });
-  if (p.silueta !== 'alfa') html += bloque({ cat: 'imagenes', html: t_('umbral') + argRango('proc.umbral', p.umbral, 0, 255, 1), deshabilitado: d });
-  html += bloque({ cat: 'imagenes', html: t_('invertir (negativo)') + argCheck('proc.invertir', p.invertir), deshabilitado: d });
-  html += bloque({ cat: 'imagenes', html: t_('suavizar') + argRango('proc.suavizarMm', p.suavizarMm, 0, 3, 0.25, ' mm'), deshabilitado: d, titulo: t('Cierra grietas y redondea') });
-  html += bloque({ cat: 'imagenes', html: t_('engrosar / afinar') + argRango('proc.engrosarMm', p.engrosarMm, -3, 3, 0.25, ' mm'), deshabilitado: d, titulo: t('+ engorda, − adelgaza') });
-  html += bloque({ cat: 'imagenes', html: t_('limpiar manchas') + argRango('proc.limpiarMm', p.limpiarMm, 0, 6, 0.5, ' mm'), deshabilitado: d, titulo: t('Borra pedacitos más chicos que esto') });
-  html += bloque({ cat: 'imagenes', icono: '🔁', html: t_('cambiar la imagen'), accion: 'reemplazar', deshabilitado: d });
+  let filas = fila(t('Fondo'), ctlSelect('proc.fondo', p.fondo, [{ id: 'auto', nombre: t('automático (desde los bordes)') }, { id: 'color', nombre: t('de un color que elijo') }, { id: 'ninguno', nombre: t('no quitar nada') }]));
+  if (p.fondo !== 'ninguno') filas += fila(t('Tolerancia'), ctlRango('proc.tolerancia', p.tolerancia, 0, 160, 1), t('cuánto puede variar el color del fondo'));
+  if (p.fondo === 'color') filas += filaLibre(t('Color'), `<span class="ctl-color"><button type="button" class="accion accion--chica ${estado.gotero ? 'accion--activa' : ''}" data-accion="gotero">💧 ${estado.gotero ? t('hacé clic en el fondo de la foto…') : t('elegir en la foto')}</button><span class="ctl-muestra" style="background:${p.colorClave ? `rgb(${p.colorClave.join(',')})` : 'transparent'}"></span></span>`);
+  html += grupo(t('Quitar el fondo'), filas);
+  filas = fila(t('La figura es'), ctlSelect('proc.silueta', p.silueta, [{ id: 'alfa', nombre: t('todo lo que quedó') }, { id: 'oscuro', nombre: t('sólo lo oscuro (dibujo a lápiz)') }, { id: 'claro', nombre: t('sólo lo claro') }]));
+  if (p.silueta !== 'alfa') filas += fila(t('Umbral'), ctlRango('proc.umbral', p.umbral, 0, 255, 1));
+  filas += filaLibre('', ctlCheck('proc.invertir', p.invertir, t('Invertir (negativo)')));
+  filas += fila(t('Suavizar'), ctlRango('proc.suavizarMm', p.suavizarMm, 0, 3, 0.25, ' mm'), t('cierra grietas y redondea'));
+  filas += fila(t('Engrosar / afinar'), ctlRango('proc.engrosarMm', p.engrosarMm, -3, 3, 0.25, ' mm'), t('+ engorda, − adelgaza'));
+  filas += fila(t('Limpiar manchas'), ctlRango('proc.limpiarMm', p.limpiarMm, 0, 6, 0.5, ' mm'), t('borra pedacitos más chicos que esto'));
+  filas += `<div class="acciones acciones--1">${accionBtn('reemplazar', '🔁', t('Cambiar la imagen'))}</div>`;
+  html += grupo(t('Pasar a silueta'), filas);
   return html;
 }
 
-function paletaTexto() {
+function panelTexto() {
   const capa = capaSel();
   const esTxt = capa && capa.tipo === 'texto';
-  const d = !esTxt;
-  const c = esTxt ? capa : { texto: '', fuente: 'Bangers', tamMm: 20, alineacion: 'center', negrita: false, interletra: 0, interlinea: 1.1 };
-  let html = `<h3 class="paleta__titulo" data-cat="texto">🔤 ${t('Texto')}</h3><p class="paleta__nota">${t('Tu nombre, una palabra, un título. Doble clic en un texto del lienzo para editarlo.')}</p>`;
-  html += bloque({ cat: 'texto', icono: '✏️', html: t_('agregar un texto'), accion: 'texto', arrastre: { tipo: 'texto' } });
-  html += bloque({ cat: 'texto', icono: '🙋', html: t_('agregar mi nombre'), accion: 'nombre', arrastre: { tipo: 'nombre' }, titulo: t('Escribe tu nombre (el de arriba) como texto') });
-  html += `<div class="paleta__separador"></div>`;
-  if (!esTxt) html += `<p class="paleta__nota">${t('Seleccioná un texto en el lienzo para cambiarlo.')}</p>`;
-  html += bloque({ cat: 'texto', html: t_('dice') + salto + `<textarea data-prop="texto" rows="2" ${d ? 'disabled' : ''}>${escapar(c.texto)}</textarea>`, deshabilitado: d });
-  html += bloque({ cat: 'texto', html: t_('tamaño') + argNum('tamMm', c.tamMm, 3, 300, 1, 'mm'), deshabilitado: d });
-  html += bloque({ cat: 'texto', html: t_('alineación') + argSelect('alineacion', c.alineacion, [{ id: 'left', nombre: t('izquierda') }, { id: 'center', nombre: t('centro') }, { id: 'right', nombre: t('derecha') }]) + t_('negrita') + argCheck('negrita', c.negrita), deshabilitado: d });
-  html += bloque({ cat: 'texto', html: t_('espacio entre letras') + argRango('interletra', c.interletra, -10, 40, 1), deshabilitado: d, titulo: t('Juntarlas hace que queden unidas al cortar') });
-  html += bloque({ cat: 'texto', html: t_('espacio entre líneas') + argRango('interlinea', c.interlinea, 0.6, 2, 0.05), deshabilitado: d });
-  html += `<h3 class="paleta__titulo">${t('Fuente')}</h3><p class="paleta__nota">${t('Para que las letras salgan en una sola pieza, elegí una fuente gorda y letras juntas.')}</p><div class="fuentes">`;
+  let html = seccion('texto', '🔤 ' + t('Texto'), t('Tu nombre, una palabra, un título. Doble clic en un texto del lienzo para editarlo.'));
+  html += `<div class="elementos elementos--2">`;
+  html += elemento({ cat: 'texto', icono: 'Aa', texto: t('Agregar texto'), accion: 'texto', arrastre: { tipo: 'texto' }, grande: true, estilo: 'font-family:Bangers' });
+  html += elemento({ cat: 'texto', icono: '🙋', texto: t('Mi nombre'), accion: 'nombre', arrastre: { tipo: 'nombre' }, grande: true, titulo: t('Escribe tu nombre (el de arriba) como texto') });
+  html += `</div>`;
+  if (esTxt) {
+    let filas = filaLibre(t('Dice'), `<textarea class="ctl-texto" data-prop="texto" rows="2">${escapar(capa.texto)}</textarea>`);
+    filas += fila(t('Tamaño'), ctlNum('tamMm', capa.tamMm, 3, 300, 1, 'mm'));
+    filas += fila(t('Alineación'), ctlSelect('alineacion', capa.alineacion, [{ id: 'left', nombre: t('izquierda') }, { id: 'center', nombre: t('centro') }, { id: 'right', nombre: t('derecha') }]));
+    filas += filaLibre('', ctlCheck('negrita', capa.negrita, t('Negrita')));
+    filas += fila(t('Entre letras'), ctlRango('interletra', capa.interletra, -10, 40, 1), t('juntarlas hace que queden unidas al cortar'));
+    filas += fila(t('Entre líneas'), ctlRango('interlinea', capa.interlinea, 0.6, 2, 0.05));
+    html += grupo(t('El texto'), filas);
+  }
+  html += seccion(null, t('Tipografías'), esTxt ? t('Tocá una para cambiar la fuente del texto seleccionado.') : t('Tocá una para agregar un texto con esa fuente. Las gordas salen mejor al cortar.'));
+  html += `<div class="elementos elementos--fuentes">`;
   for (const f of FUENTES) {
-    html += bloque({ cat: 'texto', html: `<span class="bloque__texto" style="font-family:'${f.id}'">${escapar(f.nombre.replace(/\s*\(.*\)/, ''))}</span>`, accion: `fuente:${f.id}`, deshabilitado: d, clase: 'bloque--fuente' + (esTxt && c.fuente === f.id ? ' bloque--ejecutando' : ''), titulo: t(f.nombre) });
+    html += elemento({ cat: 'texto', icono: 'Aa', estilo: `font-family:'${f.id}'`, texto: f.nombre.replace(/\s*\(.*\)/, ''), accion: `fuente:${f.id}`, activo: esTxt && capa.fuente === f.id, titulo: t(f.nombre), clase: 'elemento--fuente' });
   }
   html += `</div>`;
   return html;
 }
 
-function paletaFormas() {
+function panelFormas() {
   const capa = capaSel();
   const esForma = capa && capa.tipo === 'forma';
-  let html = `<h3 class="paleta__titulo" data-cat="formas">⭐ ${t('Formas')}</h3><p class="paleta__nota">${t('Clic o arrastrá al lienzo. Con «− resta» hacen agujeros; el puente une piezas sueltas.')}</p>`;
-  for (const f of FORMAS) html += bloque({ cat: 'formas', icono: ICONO_FORMA[f.id] || '▪', html: t_(t(f.nombre).toLowerCase()), accion: `forma:${f.id}`, arrastre: { tipo: 'forma', forma: f.id } });
+  let html = seccion('formas', '⭐ ' + t('Formas'), t('Tocá una forma o arrastrala al lienzo. En modo «− resta» hacen agujeros; el puente une piezas sueltas.'));
+  html += `<div class="elementos elementos--3">`;
+  for (const f of FORMAS) html += elemento({ cat: 'formas', imagen: iconoForma(f.id, '#2c1a4a'), texto: t(f.nombre).replace(/\s*\(.*\)/, ''), accion: `forma:${f.id}`, arrastre: { tipo: 'forma', forma: f.id }, titulo: t(f.nombre), activo: esForma && capa.forma === f.id });
+  html += `</div>`;
   if (esForma) {
     const p = capa.params;
-    html += `<div class="paleta__separador"></div><h3 class="paleta__titulo">${t('Esta forma')}</h3>`;
-    html += bloque({ cat: 'formas', html: t_('forma') + argSelect('forma', capa.forma, FORMAS.map(f => ({ id: f.id, nombre: t(f.nombre) }))) });
-    if (capa.forma === 'estrella') { html += bloque({ cat: 'formas', html: t_('puntas') + argRango('params.puntas', p.puntas, 3, 12, 1) }); html += bloque({ cat: 'formas', html: t_('radio interior') + argRango('params.interior', p.interior, 15, 90, 1, ' %') }); }
-    if (capa.forma === 'rectRedondo') html += bloque({ cat: 'formas', html: t_('esquinas') + argRango('params.radio', p.radio, 0, 50, 1, ' %') });
-    if (['anillo', 'flecha', 'luna'].includes(capa.forma)) html += bloque({ cat: 'formas', html: t_('grosor') + argRango('params.grosor', p.grosor, 5, 90, 1, ' %') });
-    html += bloque({ cat: 'formas', html: t_('ancho') + argNum('w', capa.w, 1, 600, 0.5, 'mm') + t_('alto') + argNum('h', capa.h, 1, 600, 0.5, 'mm') });
+    let filas = '';
+    if (capa.forma === 'estrella') { filas += fila(t('Puntas'), ctlRango('params.puntas', p.puntas, 3, 12, 1)); filas += fila(t('Radio interior'), ctlRango('params.interior', p.interior, 15, 90, 1, ' %')); }
+    if (capa.forma === 'rectRedondo') filas += fila(t('Esquinas'), ctlRango('params.radio', p.radio, 0, 50, 1, ' %'));
+    if (['anillo', 'flecha', 'luna'].includes(capa.forma)) filas += fila(t('Grosor'), ctlRango('params.grosor', p.grosor, 5, 90, 1, ' %'));
+    filas += fila(t('Ancho'), ctlNum('w', capa.w, 1, 600, 0.5, 'mm')) + fila(t('Alto'), ctlNum('h', capa.h, 1, 600, 0.5, 'mm'));
+    html += grupo(t('Esta forma'), filas);
   }
   return html;
 }
 
-function paletaEditar() {
+function panelEditar() {
   const capa = capaSel();
-  const d = !capa;
-  let html = `<h3 class="paleta__titulo" data-cat="editar">✋ ${t('Editar')}</h3><p class="paleta__nota">${t('Estos bloques actúan sobre la capa seleccionada.')}</p>`;
-  html += bloque({ cat: 'editar', icono: '➕', html: t_('suma: agrega figura (negro)'), accion: 'modo:sumar', deshabilitado: d, clase: capa && capa.modo !== 'restar' ? 'bloque--ejecutando' : '' });
-  html += bloque({ cat: 'editar', icono: '➖', html: t_('resta: hace un agujero (rojo)'), accion: 'modo:restar', deshabilitado: d, clase: capa && capa.modo === 'restar' ? 'bloque--ejecutando' : '', titulo: t('Por el agujero pasa la luz') });
-  html += `<div class="paleta__separador"></div>`;
-  html += bloque({ cat: 'editar', icono: '⌖', html: t_('centrar en la pieza'), accion: 'centrar', deshabilitado: d });
-  html += bloque({ cat: 'editar', icono: '⤢', html: t_('agrandar hasta llenar la pieza'), accion: 'ajustar', deshabilitado: d });
-  html += bloque({ cat: 'editar', icono: '⇋', html: t_('espejar (izquierda ↔ derecha)'), accion: 'flipX', deshabilitado: d });
-  html += bloque({ cat: 'editar', icono: '⇅', html: t_('voltear (arriba ↔ abajo)'), accion: 'flipY', deshabilitado: d });
-  html += bloque({ cat: 'editar', html: t_('girar') + argNum('rot', capa ? capa.rot || 0 : 0, -180, 180, 1, '°'), deshabilitado: d });
-  html += bloque({ cat: 'editar', html: t_('ir a x:') + argNum('x', capa ? capa.x : 0, -500, 500, 0.5) + t_('y:') + argNum('y', capa ? capa.y : 0, -500, 500, 0.5), deshabilitado: d });
-  html += `<div class="paleta__separador"></div>`;
-  html += bloque({ cat: 'editar', icono: '⏫', html: t_('traer adelante'), accion: 'adelante', deshabilitado: d });
-  html += bloque({ cat: 'editar', icono: '⏬', html: t_('mandar atrás'), accion: 'atras', deshabilitado: d });
-  html += bloque({ cat: 'editar', icono: '⧉', html: t_('duplicar'), accion: 'duplicar', deshabilitado: d });
-  html += bloque({ cat: 'editar', icono: capa && !capa.visible ? '👁' : '◌', html: t_(capa && !capa.visible ? 'mostrar' : 'ocultar'), accion: 'visible', deshabilitado: d });
-  html += bloque({ cat: 'editar', icono: '🗑', html: t_('eliminar'), accion: 'eliminar', deshabilitado: d, clase: 'bloque--peligro' });
-  html += `<div class="paleta__separador"></div>`;
-  html += bloque({ cat: 'editar', icono: '↶', html: t_('deshacer'), accion: 'deshacer' });
-  html += bloque({ cat: 'editar', icono: '↷', html: t_('rehacer'), accion: 'rehacer' });
+  let html = seccion('editar', '🎛 ' + t('Ajustar'), t('Todo lo que le podés hacer al elemento seleccionado.'));
+  if (!capa) return html + nota(t('Seleccioná un elemento en el lienzo (o en la lista de capas) para ajustarlo.'));
+  html += `<div class="ajustes"><div class="ajustes__titulo">${ICONO_CAPA[capa.tipo] || ''} ${escapar(capa.nombre)}</div>
+    <div class="modo">
+      <button type="button" class="modo__btn modo__btn--suma ${capa.modo !== 'restar' ? 'modo__btn--activo' : ''}" data-accion="modo:sumar" title="${t('Lo negro se corta como figura')}">＋ ${t('Suma (figura)')}</button>
+      <button type="button" class="modo__btn modo__btn--resta ${capa.modo === 'restar' ? 'modo__btn--activo' : ''}" data-accion="modo:restar" title="${t('Por el agujero pasa la luz')}">－ ${t('Resta (agujero)')}</button>
+    </div>
+    ${fila(t('Giro'), ctlRango('rot', Math.round(capa.rot || 0), -180, 180, 1, '°'))}
+    <div class="ajuste ajuste--2">${fila('x', ctlNum('x', capa.x, -500, 500, 0.5, 'mm'))}${fila('y', ctlNum('y', capa.y, -500, 500, 0.5, 'mm'))}</div>
+  </div>`;
+  html += `<div class="acciones">
+    ${accionBtn('centrar', '⌖', t('Centrar'))}
+    ${accionBtn('ajustar', '⤢', t('Llenar la pieza'))}
+    ${accionBtn('flipX', '⇋', t('Espejar'))}
+    ${accionBtn('flipY', '⇅', t('Voltear'))}
+    ${accionBtn('adelante', '⏫', t('Adelante'))}
+    ${accionBtn('atras', '⏬', t('Atrás'))}
+    ${accionBtn('duplicar', '⧉', t('Duplicar'))}
+    ${accionBtn('visible', capa.visible ? '◌' : '👁', capa.visible ? t('Ocultar') : t('Mostrar'))}
+    ${accionBtn('eliminar', '🗑', t('Eliminar'), { clase: 'accion--peligro' })}
+  </div>`;
   return html;
 }
 
-function paletaPieza() {
+function panelPieza() {
   const pz = estado.proyecto.pieza;
   const tipo = TIPOS_PIEZA.find(x => x.id === pz.tipo) || TIPOS_PIEZA[0];
-  let html = `<h3 class="paleta__titulo" data-cat="pieza">✂ ${t('La pieza')}</h3><p class="paleta__nota">${t('La hoja donde diseñás: es lo que se corta. Medidas reales, en milímetros.')}</p>`;
-  html += bloque({ cat: 'pieza', html: t_('tamaño rápido') + argSelect('pieza.preset', `${pz.anchoMm}x${pz.altoMm}`, [{ id: '', nombre: t('— elegir —') }].concat(PRESETS_PIEZA.map(p => ({ id: `${p.w}x${p.h}`, nombre: t(p.nombre) })))) });
-  html += bloque({ cat: 'pieza', html: t_('ancho') + argNum('pieza.anchoMm', pz.anchoMm, 10, 300, 1, 'mm') + t_('alto') + argNum('pieza.altoMm', pz.altoMm, 10, 300, 1, 'mm') });
-  html += bloque({ cat: 'pieza', html: t_('tipo de pieza') + argSelect('pieza.tipo', pz.tipo, TIPOS_PIEZA.map(x => ({ id: x.id, nombre: t(x.nombre) }))) });
-  html += `<p class="paleta__nota">${escapar(t(tipo.ayuda))}</p>`;
-  if (pz.tipo === 'base') html += bloque({ cat: 'pieza', html: t_('base: ancho') + argNum('pieza.base.anchoMm', pz.base.anchoMm, 5, 300, 1, 'mm') + t_('alto') + argNum('pieza.base.altoMm', pz.base.altoMm, 3, 100, 1, 'mm') });
-  if (pz.tipo === 'marco') html += bloque({ cat: 'pieza', html: t_('grosor del marco') + argNum('pieza.marco.grosorMm', pz.marco.grosorMm, 2, 60, 0.5, 'mm') });
-  if (pz.tipo === 'ventana') html += bloque({ cat: 'pieza', html: t_('esquinas redondeadas') + argNum('pieza.ventana.radioMm', pz.ventana.radioMm, 0, 60, 1, 'mm') });
-  html += bloque({ cat: 'pieza', html: t_('espejar para vinilo termoadhesivo') + argCheck('pieza.espejo', pz.espejo), titulo: t('Se corta al revés y queda bien al plancharlo') });
-  html += `<div class="paleta__separador"></div>`;
-  html += bloque({ cat: 'pieza', icono: '🔦', html: t_('ver la sombra en el escenario'), accion: 'vista:sombra' });
-  html += bloque({ cat: 'pieza', icono: '✂', html: t_('ver la pieza en el escenario'), accion: 'vista:pieza' });
+  let html = seccion('pieza', '✂ ' + t('La pieza'), t('La hoja donde diseñás: es lo que se corta. Medidas reales, en milímetros.'));
+  let filas = fila(t('Tamaño rápido'), ctlSelect('pieza.preset', `${pz.anchoMm}x${pz.altoMm}`, [{ id: '', nombre: t('— elegir —') }].concat(PRESETS_PIEZA.map(p => ({ id: `${p.w}x${p.h}`, nombre: t(p.nombre) })))));
+  filas += `<div class="ajuste ajuste--2">${fila(t('Ancho'), ctlNum('pieza.anchoMm', pz.anchoMm, 10, 300, 1, 'mm'))}${fila(t('Alto'), ctlNum('pieza.altoMm', pz.altoMm, 10, 300, 1, 'mm'))}</div>`;
+  filas += fila(t('Tipo de pieza'), ctlSelect('pieza.tipo', pz.tipo, TIPOS_PIEZA.map(x => ({ id: x.id, nombre: t(x.nombre) }))));
+  filas += `<p class="panel__nota">${escapar(t(tipo.ayuda))}</p>`;
+  if (pz.tipo === 'base') filas += `<div class="ajuste ajuste--2">${fila(t('Base: ancho'), ctlNum('pieza.base.anchoMm', pz.base.anchoMm, 5, 300, 1, 'mm'))}${fila(t('Base: alto'), ctlNum('pieza.base.altoMm', pz.base.altoMm, 3, 100, 1, 'mm'))}</div>`;
+  if (pz.tipo === 'marco') filas += fila(t('Grosor del marco'), ctlNum('pieza.marco.grosorMm', pz.marco.grosorMm, 2, 60, 0.5, 'mm'));
+  if (pz.tipo === 'ventana') filas += fila(t('Esquinas redondeadas'), ctlNum('pieza.ventana.radioMm', pz.ventana.radioMm, 0, 60, 1, 'mm'));
+  filas += filaLibre('', ctlCheck('pieza.espejo', pz.espejo, t('Espejar para vinilo termoadhesivo')));
+  html += grupo(t('Medidas y tipo'), filas);
   return html;
 }
 
-function paletaCortar() {
-  let html = `<h3 class="paleta__titulo" data-cat="cortar">⬇ ${t('Cortar y guardar')}</h3><p class="paleta__nota">${t('El SVG se carga en Cricut Design Space (Upload → Insert → Make It) o en la láser.')}</p>`;
-  html += bloque({ cat: 'cortar', icono: '▦', html: t_('revisar en el tapete'), accion: 'vista:tapete', titulo: t('Muestra la pieza como la ve la cortadora y avisa si hay piezas sueltas o detalles muy finos') });
-  html += bloque({ cat: 'cortar', html: t_('detalle mínimo') + argSelect('global.detalleMinMm', estado.detalleMinMm, [{ id: 1, nombre: t('1 mm (láser, cartulina)') }, { id: 1.5, nombre: t('1,5 mm (vinilo)') }, { id: 2.5, nombre: t('2,5 mm (vinilo termoadhesivo)') }]) });
-  html += bloque({ cat: 'cortar', html: t_('recortar el SVG al dibujo (sin el borde de la hoja)') + argCheck('global.recortarSvg', estado.recortarSvg) });
-  html += `<div class="paleta__separador"></div>`;
-  html += bloque({ cat: 'cortar', icono: '✂', html: t_('descargar SVG para cortar'), accion: 'svg', sombrero: true });
-  html += bloque({ cat: 'cortar', icono: '🖼', html: t_('descargar PNG (imagen)'), accion: 'png' });
-  html += bloque({ cat: 'cortar', icono: '📋', html: t_('copiar el SVG'), accion: 'copiarSvg' });
-  html += `<div class="paleta__separador"></div><h3 class="paleta__titulo">${t('Proyecto')}</h3><p class="paleta__nota">${t('Se guarda solo en este navegador. Para seguir en otra compu o mandárselo al docente, bajá el .json.')}</p>`;
-  html += bloque({ cat: 'cortar', icono: '💾', html: t_('guardar en mi computadora (.json)'), accion: 'guardar' });
-  html += bloque({ cat: 'cortar', icono: '📂', html: t_('abrir un proyecto (.json)'), accion: 'abrir' });
-  html += bloque({ cat: 'cortar', icono: '✨', html: t_('empezar de nuevo'), accion: 'nuevo', clase: 'bloque--peligro' });
+function panelCortar() {
+  let html = seccion('cortar', '⬇ ' + t('Cortar y guardar'), t('El SVG se carga en Cricut Design Space (Upload → Insert → Make It) o en la láser.'));
+  let filas = fila(t('Detalle mínimo'), ctlSelect('global.detalleMinMm', estado.detalleMinMm, [{ id: 1, nombre: t('1 mm (láser, cartulina)') }, { id: 1.5, nombre: t('1,5 mm (vinilo)') }, { id: 2.5, nombre: t('2,5 mm (vinilo termoadhesivo)') }]));
+  filas += filaLibre('', ctlCheck('global.recortarSvg', estado.recortarSvg, t('Recortar el SVG al dibujo (sin el borde de la hoja)')));
+  html += grupo(t('Para la cortadora'), filas);
+  html += `<div class="acciones acciones--1">
+    ${accionBtn('vista:tapete', '▦', t('Revisar en el tapete'), { titulo: t('Muestra la pieza como la ve la cortadora y avisa si hay piezas sueltas o detalles muy finos') })}
+    ${accionBtn('svg', '✂', t('Descargar SVG para cortar'), { clase: 'accion--primaria' })}
+    ${accionBtn('png', '🖼', t('Descargar PNG (imagen)'))}
+    ${accionBtn('copiarSvg', '📋', t('Copiar el SVG'))}
+  </div>`;
+  html += seccion(null, t('Proyecto'), t('Se guarda solo en este navegador. Para seguir en otra compu o mandárselo al docente, bajá el .json.'));
+  html += `<div class="acciones acciones--1">
+    ${accionBtn('guardar', '💾', t('Guardar en mi computadora (.json)'))}
+    ${accionBtn('abrir', '📂', t('Abrir un proyecto (.json)'))}
+    ${accionBtn('nuevo', '✨', t('Empezar de nuevo'), { clase: 'accion--peligro' })}
+  </div>`;
   return html;
 }
 
 function refrescarPaleta() {
   const paleta = $('paleta');
   const scroll = paleta.scrollTop;
-  paleta.innerHTML = paletaImagenes() + '<div class="paleta__separador"></div>' + paletaTexto() + '<div class="paleta__separador"></div>' + paletaFormas() +
-    '<div class="paleta__separador"></div>' + paletaEditar() + '<div class="paleta__separador"></div>' + paletaPieza() + '<div class="paleta__separador"></div>' + paletaCortar();
+  paleta.innerHTML = [panelImagenes(), panelTexto(), panelFormas(), panelEditar(), panelPieza(), panelCortar()].join('<div class="panel__separador"></div>');
   paleta.scrollTop = scroll;
   actualizarCategoriaActiva();
 }
@@ -1075,12 +1095,12 @@ function actualizarCategoriaActiva() {
 }
 $('paleta').addEventListener('scroll', actualizarCategoriaActiva, { passive: true });
 
-// --- cambios en los argumentos de los bloques
+// --- cambios en los controles
 function aplicarProp(input, esFinal) {
   const prop = input.dataset.prop;
   let v = leerValor(input);
   if (input.type !== 'checkbox' && input.type !== 'text' && input.tagName !== 'TEXTAREA' && input.tagName !== 'SELECT' && Number.isNaN(v)) return;
-  if (input.type === 'range') { const out = input.parentElement.querySelector('output'); if (out) out.textContent = v + (/Mm$/.test(prop) ? ' mm' : /interior|radio|grosor/.test(prop) ? ' %' : ''); }
+  if (input.type === 'range') { const out = input.parentElement.querySelector('output'); if (out) out.textContent = v + (/Mm$/.test(prop) ? ' mm' : /interior|radio|grosor/.test(prop) ? ' %' : prop === 'rot' ? '°' : ''); }
 
   if (prop.startsWith('global.')) {
     const k = prop.slice(7);
@@ -1111,18 +1131,14 @@ function aplicarProp(input, esFinal) {
 $('paleta').addEventListener('input', e => { const i = e.target.closest('[data-prop]'); if (i && i.type !== 'checkbox' && i.tagName !== 'SELECT') aplicarProp(i, false); });
 $('paleta').addEventListener('change', e => { const i = e.target.closest('[data-prop]'); if (i) aplicarProp(i, true); });
 
-// --- clic en un bloque = ejecutar
-function ejecutarBloque(el) {
-  const accion = el.dataset.accion;
-  if (!accion || el.classList.contains('bloque--deshabilitado')) { if (el.classList.contains('bloque--deshabilitado')) toast(t('Primero seleccioná una capa en el lienzo (o agregá una)')); return; }
-  el.classList.add('bloque--ejecutando');
-  setTimeout(() => el.classList.remove('bloque--ejecutando'), 350);
-  ejecutar(accion);
-}
+// --- clic en un elemento o acción
 $('paleta').addEventListener('click', e => {
   if (e.target.closest('input, select, textarea, output')) return;
-  const el = e.target.closest('.bloque');
-  if (el && !el._arrastrado) ejecutarBloque(el);
+  const el = e.target.closest('[data-accion]');
+  if (!el || el._arrastrado) return;
+  el.classList.add('accion--pulsada');
+  setTimeout(() => el.classList.remove('accion--pulsada'), 250);
+  ejecutar(el.dataset.accion);
 });
 
 function ejecutar(accion) {
@@ -1141,7 +1157,10 @@ function ejecutar(accion) {
       break;
     case 'texto': agregarTexto(); break;
     case 'nombre': agregarTexto((estado.proyecto.autor || prompt(t('¿Cómo te llamás?')) || t('YO')).toUpperCase()); break;
-    case 'fuente': if (capa && capa.tipo === 'texto') { anotar(); capa.fuente = arg; cargarFuente(arg).then(() => cambio(true)); cambio(true); } break;
+    case 'fuente':
+      if (capa && capa.tipo === 'texto') { anotar(); capa.fuente = arg; cargarFuente(arg).then(() => cambio(true)); cambio(true); }
+      else agregarTexto(null, null, arg);
+      break;
     case 'forma': agregarForma(arg); break;
     case 'modo': if (capa) { anotar(); capa.modo = arg; cambio(true); } break;
     case 'centrar': if (capa) { anotar(); capa.x = estado.proyecto.pieza.anchoMm / 2; capa.y = estado.proyecto.pieza.altoMm / 2; cambio(true); } break;
@@ -1165,33 +1184,33 @@ function ejecutar(accion) {
   }
 }
 
-// --- arrastrar bloques al lienzo
-let arrastreBloque = null;
+// --- arrastrar elementos al lienzo
+let arrastreElemento = null;
 $('paleta').addEventListener('pointerdown', e => {
   if (e.target.closest('input, select, textarea')) return;
-  const el = e.target.closest('.bloque--arrastrable');
-  if (!el || el.classList.contains('bloque--deshabilitado')) return;
-  arrastreBloque = { el, x0: e.clientX, y0: e.clientY, fantasma: null, datos: JSON.parse(el.dataset.arrastre) };
+  const el = e.target.closest('[data-arrastre]');
+  if (!el) return;
+  arrastreElemento = { el, x0: e.clientX, y0: e.clientY, fantasma: null, datos: JSON.parse(el.dataset.arrastre) };
   el._arrastrado = false;
 });
 document.addEventListener('pointermove', e => {
-  const a = arrastreBloque; if (!a) return;
+  const a = arrastreElemento; if (!a) return;
   if (!a.fantasma) {
     if (Math.hypot(e.clientX - a.x0, e.clientY - a.y0) < 8) return;
     a.fantasma = a.el.cloneNode(true);
-    a.fantasma.classList.add('bloque-fantasma');
+    a.fantasma.classList.add('elemento-fantasma');
     a.fantasma.style.width = a.el.offsetWidth + 'px';
     document.body.appendChild(a.fantasma);
     a.el._arrastrado = true;
   }
-  a.fantasma.style.left = (e.clientX - 20) + 'px';
-  a.fantasma.style.top = (e.clientY - 16) + 'px';
+  a.fantasma.style.left = (e.clientX - a.el.offsetWidth / 2) + 'px';
+  a.fantasma.style.top = (e.clientY - 24) + 'px';
   const r = zona.getBoundingClientRect();
   zona.classList.toggle('lienzo__zona--soltar', e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom);
 });
 document.addEventListener('pointerup', e => {
-  const a = arrastreBloque; if (!a) return;
-  arrastreBloque = null;
+  const a = arrastreElemento; if (!a) return;
+  arrastreElemento = null;
   zona.classList.remove('lienzo__zona--soltar');
   if (!a.fantasma) return;
   a.fantasma.remove();
@@ -1328,7 +1347,7 @@ function descargarPng() {
 }
 async function copiarSvg() {
   try { await navigator.clipboard.writeText(asegurarCorte().svg); toast(t('SVG copiado al portapapeles')); }
-  catch (e) { toast(t('No se pudo copiar; descargalo con el otro bloque')); }
+  catch (e) { toast(t('No se pudo copiar; descargalo con el otro botón')); }
 }
 
 // menú superior

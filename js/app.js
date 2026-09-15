@@ -161,9 +161,8 @@ let dpr = 1, pxPorMm = 3, origen = { x: 0, y: 0 }, W = 0, H = 0;
 let redibujarPedido = false;
 
 function medirLienzo() {
-  const r = zona.getBoundingClientRect();
   dpr = Math.min(2, window.devicePixelRatio || 1);
-  W = Math.max(200, Math.floor(r.width)); H = Math.max(200, Math.floor(r.height));
+  W = Math.max(200, zona.clientWidth); H = Math.max(200, zona.clientHeight);
   if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     canvas.style.width = W + 'px'; canvas.style.height = H + 'px';

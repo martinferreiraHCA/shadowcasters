@@ -146,6 +146,7 @@ export const EN = {
   'ver la pieza en el escenario': 'show the piece on the stage',
 
   // --- palette: cut & save
+  'Cortar': 'Cut',
   'Cortar y guardar': 'Cut and save',
   'El SVG se carga en Cricut Design Space (Upload → Insert → Make It) o en la láser.': 'Load the SVG in Cricut Design Space (Upload → Insert → Make It) or in the laser cutter.',
   'revisar en el tapete': 'check on the mat',

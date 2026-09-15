@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Casters — Taller de sombras</title>
+<meta name="description" content="Taller de sombras recortadas para niños y adolescentes: clases con código, lienzo con imágenes, textos y formas, escenario con la sombra proyectada y SVG listo para la Cricut o la láser.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&family=Bangers&family=Bebas+Neue&family=Fredoka:wght@600&family=Lobster&family=Pacifico&family=Righteous&family=Luckiest+Guy&family=Chewy&family=Abril+Fatface&family=Permanent+Marker&family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<!-- ===== Barra superior (como la de Scratch) ===== -->
+<header class="menu">
+  <a class="menu__logo" href="./" title="Shadow Casters" id="logoInicio">
+    <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+      <circle cx="20" cy="20" r="18" fill="#FFBF00"/>
+      <path d="M13 30 Q20 8 27 30 Z" fill="#2c1a4a"/>
+      <circle cx="20" cy="13" r="4.5" fill="#2c1a4a"/>
+    </svg>
+    <span>Shadow<b>Casters</b></span>
+  </a>
+
+  <nav class="menu__items" id="menuEditor">
+    <div class="menu__item menu__item--desplegable" id="menuArchivo">
+      <button type="button" class="menu__boton" aria-haspopup="true" aria-expanded="false" data-i18n>Archivo ▾</button>
+      <div class="menu__panel" role="menu">
+        <button type="button" role="menuitem" data-menu="nuevo" data-i18n>✨ Nuevo proyecto</button>
+        <button type="button" role="menuitem" data-menu="abrir" data-i18n>📂 Cargar desde tu computadora (.json)</button>
+        <button type="button" role="menuitem" data-menu="guardar" data-i18n>💾 Guardar en tu computadora (.json)</button>
+        <hr>
+        <button type="button" role="menuitem" data-menu="svg" data-i18n>✂ Descargar SVG para cortar</button>
+        <button type="button" role="menuitem" data-menu="png" data-i18n>🖼 Descargar PNG</button>
+      </div>
+    </div>
+    <div class="menu__item menu__item--desplegable" id="menuEditar">
+      <button type="button" class="menu__boton" aria-haspopup="true" aria-expanded="false" data-i18n>Editar ▾</button>
+      <div class="menu__panel" role="menu">
+        <button type="button" role="menuitem" data-menu="deshacer"><span data-i18n>↶ Deshacer</span> <kbd>Ctrl+Z</kbd></button>
+        <button type="button" role="menuitem" data-menu="rehacer"><span data-i18n>↷ Rehacer</span> <kbd>Ctrl+Y</kbd></button>
+        <hr>
+        <button type="button" role="menuitem" data-menu="duplicar"><span data-i18n>⧉ Duplicar capa</span> <kbd>Ctrl+D</kbd></button>
+        <button type="button" role="menuitem" data-menu="eliminar"><span data-i18n>🗑 Eliminar capa</span> <kbd>Supr</kbd></button>
+      </div>
+    </div>
+    <button type="button" class="menu__boton" data-menu="tutorial" data-i18n>💡 Tutorial</button>
+  </nav>
+
+  <div class="menu__proyecto" id="menuProyecto">
+    <input type="text" id="nombreProyecto" class="menu__nombre" maxlength="60" placeholder="Nombre del proyecto" title="Nombre del proyecto" data-i18n-placeholder data-i18n-title spellcheck="false">
+    <input type="text" id="autorProyecto" class="menu__nombre menu__nombre--autor" maxlength="40" placeholder="Tu nombre" title="Tu nombre (va en el archivo)" data-i18n-placeholder data-i18n-title spellcheck="false">
+  </div>
+
+  <div class="menu__clase" id="menuClase" hidden>
+    <span class="pildora" id="claseEstado">—</span>
+    <button type="button" class="menu__accion menu__accion--claro" id="btnVolverPanel" hidden data-i18n>⇦ Volver al panel</button>
+  </div>
+
+  <div class="menu__derecha">
+    <span class="menu__guardado" id="estadoGuardado" title="Se guarda solo" data-i18n-title>● guardado</span>
+    <button type="button" class="menu__accion" id="btnDescargarSvg" title="Descargar el SVG listo para la Cricut o la láser" data-i18n-title>✂ SVG</button>
+    <button type="button" class="menu__accion menu__accion--claro" id="btnGuardarJson" title="Guardar el proyecto en tu computadora" data-i18n-title data-i18n>💾 Guardar</button>
+    <div class="idiomas" role="group" aria-label="Idioma">
+      <button type="button" data-idioma="es" title="Español">ES</button>
+      <button type="button" data-idioma="en" title="English">EN</button>
+    </div>
+    <button type="button" class="menu__accion menu__accion--salir" id="btnSalir" title="Volver al inicio" data-i18n-title data-i18n>✕ Salir</button>
+  </div>
+</header>
+
+<!-- ===== Portal de entrada ===== -->
+<section class="portal" id="portal">
+  <div class="portal__fondo" aria-hidden="true">
+    <span class="burbuja burbuja--1"></span><span class="burbuja burbuja--2"></span><span class="burbuja burbuja--3"></span><span class="burbuja burbuja--4"></span>
+  </div>
+  <div class="portal__contenido">
+    <header class="portal__cab">
+      <div class="portal__logo">
+        <svg viewBox="0 0 40 40" width="64" height="64" aria-hidden="true">
+          <circle cx="20" cy="20" r="18" fill="#FFBF00"/>
+          <path d="M13 30 Q20 8 27 30 Z" fill="#2c1a4a"/>
+          <circle cx="20" cy="13" r="4.5" fill="#2c1a4a"/>
+        </svg>
+        <div>
+          <h1>Shadow<b>Casters</b></h1>
+          <p data-i18n>Diseñá tu sombra, mirala proyectada y cortala.</p>
+        </div>
+      </div>
+      <div class="idiomas idiomas--portal" role="group" aria-label="Idioma">
+        <button type="button" data-idioma="es" title="Español">🇪🇸 ES</button>
+        <button type="button" data-idioma="en" title="English">🇬🇧 EN</button>
+      </div>
+    </header>
+
+    <div class="portal__tarjetas">
+      <!-- Estudiante -->
+      <section class="tarjeta tarjeta--estudiante">
+        <div class="tarjeta__icono">🧑‍🎨</div>
+        <h2 data-i18n>Soy estudiante</h2>
+        <p data-i18n>Pedile el código a tu docente. Si volvés a entrar con el mismo nombre (aunque sea otro día o desde otra compu), tu diseño vuelve tal cual lo dejaste.</p>
+        <label class="campo">
+          <span data-i18n>Código de la clase</span>
+          <input type="text" id="entradaCodigo" class="campo__codigo" placeholder="ABC123" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        </label>
+        <label class="campo">
+          <span data-i18n>Tu nombre y apellido</span>
+          <input type="text" id="entradaNombre" placeholder="Ej.: Camila Pérez" data-i18n-placeholder maxlength="40" autocomplete="name">
+        </label>
+        <button type="button" class="btn-grande btn-grande--azul" id="btnEntrarClase" data-i18n>🚀 Entrar a la clase</button>
+        <p class="tarjeta__error" id="entradaError" hidden></p>
+      </section>
+
+      <!-- Docente -->
+      <section class="tarjeta tarjeta--docente">
+        <div class="tarjeta__icono">🧑‍🏫</div>
+        <h2 data-i18n>Soy docente</h2>
+        <p data-i18n>Creá una clase y compartí el código. Podés tener varias clases abiertas a la vez y ver los diseños de todos en tiempo real. Las clases quedan guardadas en este navegador para volver a abrirlas otro día.</p>
+        <label class="campo">
+          <span data-i18n>Nombre de la clase nueva</span>
+          <input type="text" id="nuevaClaseNombre" placeholder="Ej.: 2°B — Sombras" data-i18n-placeholder maxlength="60">
+        </label>
+        <button type="button" class="btn-grande btn-grande--naranja" id="btnCrearClase" data-i18n>✨ Crear una clase nueva</button>
+        <div class="mis-clases" id="misClases" hidden>
+          <h3 data-i18n>Mis clases</h3>
+          <ul id="listaClases"></ul>
+        </div>
+      </section>
+
+      <!-- Solo -->
+      <section class="tarjeta tarjeta--solo">
+        <div class="tarjeta__icono">🎨</div>
+        <h2 data-i18n>Diseñar por mi cuenta</h2>
+        <p data-i18n>Sin clase ni código: el proyecto se guarda en esta computadora y podés bajarlo como archivo para seguir en otra.</p>
+        <button type="button" class="btn-grande btn-grande--verde" id="btnSolo" data-i18n>🎨 Empezar a diseñar</button>
+        <button type="button" class="btn-grande btn-grande--blanco" id="btnAbrirArchivoPortal" data-i18n>📂 Abrir un archivo .json</button>
+      </section>
+    </div>
+
+    <section class="mis-proyectos" id="misProyectos" hidden>
+      <h3 data-i18n>Mis proyectos en esta computadora</h3>
+      <p class="mis-proyectos__nota" data-i18n>Tocá uno para seguir donde lo dejaste. Si era de una clase, intenta volver a conectarse; si la clase está cerrada, igual podés seguir trabajando.</p>
+      <div class="proyectos-grilla" id="listaProyectos"></div>
+    </section>
+
+    <footer class="portal__pie">
+      <p data-i18n>Inspirado en <a href="https://k12maker.mit.edu/project/shadow-scenes" target="_blank" rel="noopener">Shadow Scenes</a> (MIT K12 Maker). Todo pasa en el navegador: no hay servidor, la clase vive en la computadora del docente.</p>
+    </footer>
+  </div>
+</section>
+
+<!-- ===== Panel del docente ===== -->
+<section class="docente" id="panelDocente" hidden>
+  <div class="docente__pestanas" id="pestanasClases"></div>
+  <div class="docente__clase" id="claseAbierta"></div>
+</section>
+
+<!-- ===== Taller: bloques | lienzo | escenario ===== -->
+<main class="taller" id="taller" hidden>
+
+  <!-- Columna de bloques: categorías + paleta -->
+  <section class="bloques" aria-label="Funciones">
+    <nav class="categorias" id="categorias" aria-label="Categorías"></nav>
+    <div class="paleta" id="paleta"></div>
+  </section>
+
+  <!-- Lienzo de trabajo -->
+  <section class="lienzo" aria-label="Lienzo">
+    <div class="lienzo__tabs">
+      <div class="tab tab--activa"><span class="tab__icono">🎨</span> <span data-i18n>Lienzo</span></div>
+      <div class="lienzo__herramientas">
+        <label class="lienzo__check" title="Ver las fotos reales (con el fondo quitado) o ya como silueta negra" data-i18n-title>
+          <input type="checkbox" id="chkFotos" checked> <span data-i18n>ver fotos</span>
+        </label>
+        <span class="lienzo__leyenda"><i class="pip pip--negro"></i> <span data-i18n>suma</span> <i class="pip pip--rojo"></i> <span data-i18n>resta (agujero)</span></span>
+        <button type="button" class="btn-redondo" id="btnDeshacer" title="Deshacer (Ctrl+Z)" data-i18n-title>↶</button>
+        <button type="button" class="btn-redondo" id="btnRehacer" title="Rehacer (Ctrl+Y)" data-i18n-title>↷</button>
+      </div>
+    </div>
+    <div class="lienzo__zona" id="zonaLienzo" tabindex="0" aria-label="Lienzo de diseño">
+      <canvas id="canvasLienzo"></canvas>
+      <div class="lienzo__vacio" id="lienzoVacio">
+        <div class="lienzo__vacio-caja">
+          <div class="lienzo__vacio-emoji">🔦</div>
+          <p data-i18n><strong>¡Tu lienzo está vacío!</strong></p>
+          <p data-i18n>Hacé clic en un bloque de la izquierda (o arrastralo hasta acá) para agregar una <b>imagen</b>, un <b>texto</b> o una <b>forma</b>.</p>
+        </div>
+      </div>
+      <div class="lienzo__soltar" id="lienzoSoltar" data-i18n>Soltá acá para agregarlo al lienzo</div>
+      <div class="lienzo__zoom">
+        <button type="button" id="zoomMenos" title="Alejar" data-i18n-title>−</button>
+        <button type="button" id="zoomIgual" title="Ajustar al lienzo" data-i18n-title>=</button>
+        <button type="button" id="zoomMas" title="Acercar" data-i18n-title>+</button>
+      </div>
+      <div class="lienzo__pie" id="lienzoPie"></div>
+    </div>
+  </section>
+
+  <!-- Escenario (previsualización) + capas -->
+  <section class="escenario-col" aria-label="Escenario">
+    <div class="escenario__cabecera">
+      <div class="escenario__controles">
+        <button type="button" class="ctrl ctrl--bandera" id="btnProyectar" title="Proyectar la sombra (como la bandera verde)" data-i18n-title>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 3v18" stroke="#45993D" stroke-width="2.4" stroke-linecap="round"/><path d="M5 4c3-2 6 2 9 0s4-1 6 0v9c-2-1-3-2-6 0s-6-2-9 0z" fill="#4CBF56" stroke="#45993D" stroke-width="1.2"/></svg>
+        </button>
+        <button type="button" class="ctrl ctrl--parar" id="btnParar" title="Volver a la pieza" data-i18n-title>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z" fill="#EC5959" stroke="#B83B3B" stroke-width="1.2"/></svg>
+        </button>
+        <div class="escenario__vistas" role="tablist">
+          <button type="button" class="vista vista--activa" data-vista="pieza" role="tab" title="La pieza cortada, a tamaño real" data-i18n-title data-i18n>✂ Pieza</button>
+          <button type="button" class="vista" data-vista="sombra" role="tab" title="La sombra que proyecta con una luz detrás" data-i18n-title data-i18n>🔦 Sombra</button>
+          <button type="button" class="vista" data-vista="tapete" role="tab" title="Cómo va al tapete de la cortadora" data-i18n-title data-i18n>▦ Tapete</button>
+        </div>
+      </div>
+      <div class="escenario__tamano">
+        <button type="button" class="tam tam--activa" data-tam="chico" title="Escenario chico" data-i18n-title><span class="tam__icono tam__icono--chico"></span></button>
+        <button type="button" class="tam" data-tam="grande" title="Escenario grande" data-i18n-title><span class="tam__icono tam__icono--grande"></span></button>
+      </div>
+    </div>
+
+    <div class="escenario" id="escenario">
+      <canvas id="canvasEscenario" width="480" height="360"></canvas>
+      <div class="escenario__medidas" id="escenarioMedidas"></div>
+    </div>
+    <div class="escenario__avisos" id="escenarioAvisos"></div>
+
+    <!-- Info de la capa seleccionada (como la info del objeto en Scratch) -->
+    <div class="info" id="infoCapa">
+      <div class="info__fila">
+        <label class="info__campo info__campo--nombre">
+          <span data-i18n>Capa</span>
+          <input type="text" id="infoNombre" maxlength="30" spellcheck="false">
+        </label>
+        <label class="info__campo">
+          <span><b>x</b></span>
+          <input type="number" id="infoX" step="0.5">
+        </label>
+        <label class="info__campo">
+          <span><b>y</b></span>
+          <input type="number" id="infoY" step="0.5">
+        </label>
+      </div>
+      <div class="info__fila">
+        <div class="info__campo info__campo--grupo">
+          <span data-i18n>Mostrar</span>
+          <div class="info__par">
+            <button type="button" class="info__toggle" id="infoVerSi" title="Mostrar" data-i18n-title>👁</button>
+            <button type="button" class="info__toggle" id="infoVerNo" title="Ocultar" data-i18n-title>◌</button>
+          </div>
+        </div>
+        <div class="info__campo info__campo--grupo">
+          <span data-i18n>Modo</span>
+          <div class="info__par">
+            <button type="button" class="info__toggle info__toggle--suma" id="infoSuma" title="Suma: agrega figura (negro)" data-i18n-title>+</button>
+            <button type="button" class="info__toggle info__toggle--resta" id="infoResta" title="Resta: hace un agujero (rojo)" data-i18n-title>−</button>
+          </div>
+        </div>
+        <label class="info__campo">
+          <span data-i18n>Tamaño</span>
+          <input type="number" id="infoTam" step="1" min="1" title="Ancho en mm" data-i18n-title>
+        </label>
+        <label class="info__campo">
+          <span data-i18n>Giro</span>
+          <input type="number" id="infoRot" step="1" min="-180" max="180">
+        </label>
+      </div>
+    </div>
+
+    <div class="capas">
+      <div class="capas__lista" id="listaCapas"></div>
+      <div class="capas__pieza">
+        <button type="button" class="pieza-tile" id="tilePieza" title="Ajustes de la pieza (tamaño, tipo, espejo)" data-i18n-title>
+          <canvas id="miniPieza" width="64" height="64"></canvas>
+          <span data-i18n>Pieza</span>
+          <small id="miniPiezaMedida"></small>
+        </button>
+      </div>
+      <div class="capas__agregar" id="agregarCapa">
+        <div class="capas__agregar-menu">
+          <button type="button" data-agregar="imagen" title="Subir una foto o dibujo" data-i18n-title>🖼</button>
+          <button type="button" data-agregar="camara" title="Sacar una foto con la cámara" data-i18n-title>📷</button>
+          <button type="button" data-agregar="texto" title="Escribir un texto" data-i18n-title>🔤</button>
+          <button type="button" data-agregar="forma" title="Agregar una forma" data-i18n-title>⭐</button>
+        </div>
+        <button type="button" class="capas__agregar-btn" title="Agregar al lienzo" data-i18n-title>
+          <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ===== Tutorial ===== -->
+<div class="modal" id="modalAyuda" hidden>
+  <div class="modal__caja" role="dialog" aria-modal="true" aria-labelledby="ayudaTitulo">
+    <button type="button" class="modal__cerrar" data-cerrar aria-label="Cerrar">✕</button>
+    <h2 id="ayudaTitulo" data-i18n>🔦 ¿Cómo se hace una sombra recortada?</h2>
+    <div class="pasos">
+      <div class="paso">
+        <span class="paso__num" style="background:#9966FF">1</span>
+        <h3 data-i18n>Armá tu diseño en el lienzo</h3>
+        <p data-i18n>Hacé clic en los bloques de la izquierda: subí una <b>foto</b> o un dibujo (le sacamos el fondo), escribí tu <b>nombre</b> y agregá <b>formas</b>. Movelos, agrandalos y giralos con el mouse.</p>
+      </div>
+      <div class="paso">
+        <span class="paso__num" style="background:#59C059">2</span>
+        <h3 data-i18n>Negro suma, rojo resta</h3>
+        <p data-i18n>Todo lo <b>negro</b> se corta como una pieza. Si ponés una capa en modo <b>− Resta</b> (queda roja) hace un <b>agujero</b>, y por ahí pasa la luz.</p>
+      </div>
+      <div class="paso">
+        <span class="paso__num" style="background:#FFAB19">3</span>
+        <h3 data-i18n>Mirá el escenario</h3>
+        <p data-i18n>A la derecha ves la <b>pieza</b> a tamaño real y sus medidas. Apretá la <b>bandera</b> para ver cómo se proyecta la <b>sombra</b> con una luz. Movés el mouse por el escenario y la luz se mueve.</p>
+      </div>
+      <div class="paso">
+        <span class="paso__num" style="background:#FF6680">4</span>
+        <h3 data-i18n>Descargá y cortá</h3>
+        <p data-i18n>Cuando te guste, tocá <b>✂ SVG</b>. Ese archivo se carga en la Cricut (Design Space → Upload) o en la láser. Cuidado con las piezas sueltas y las letras finitas: el tapete te avisa.</p>
+      </div>
+    </div>
+    <div class="ayuda__tips">
+      <p data-i18n><b>Trucos:</b> <kbd>Supr</kbd> borra la capa · <kbd>Ctrl+Z</kbd> deshace · <kbd>Ctrl+D</kbd> duplica · flechas mueven de a poquito · podés <b>arrastrar</b> una foto desde tu escritorio directo al lienzo o <b>pegarla</b> con <kbd>Ctrl+V</kbd>.</p>
+      <p data-i18n>Tu proyecto se guarda solo en este navegador. Si estás en una clase, también le llega al docente en tiempo real. Para seguir en casa, bajalo con <b>💾 Guardar</b> y abrilo desde el inicio.</p>
+    </div>
+    <button type="button" class="btn-principal" data-cerrar data-i18n>¡A diseñar!</button>
+  </div>
+</div>
+
+<!-- ===== Cámara ===== -->
+<div class="modal" id="modalCamara" hidden>
+  <div class="modal__caja modal__caja--camara" role="dialog" aria-modal="true" aria-label="Sacar una foto">
+    <button type="button" class="modal__cerrar" data-cerrar aria-label="Cerrar">✕</button>
+    <h2 data-i18n>📷 Sacá una foto</h2>
+    <p class="modal__nota" data-i18n>Parate frente a una pared lisa y clara (o una cartulina) para que el fondo se quite fácil. ¡Probá una pose con brazos y piernas bien separados!</p>
+    <div class="camara">
+      <video id="camaraVideo" autoplay playsinline muted></video>
+    </div>
+    <div class="modal__botones">
+      <button type="button" class="btn-principal" id="btnCapturar" data-i18n>📸 Capturar</button>
+      <button type="button" class="btn-secundario" id="btnCambiarCamara" title="Cambiar de cámara" data-i18n-title data-i18n>🔄 Otra cámara</button>
+    </div>
+    <p class="modal__error" id="camaraError" hidden></p>
+  </div>
+</div>
+
+<!-- ===== Elegir forma ===== -->
+<div class="modal" id="modalFormas" hidden>
+  <div class="modal__caja" role="dialog" aria-modal="true" aria-label="Elegir forma">
+    <button type="button" class="modal__cerrar" data-cerrar aria-label="Cerrar">✕</button>
+    <h2 data-i18n>⭐ Elegí una forma</h2>
+    <div class="formas-grilla" id="formasGrilla"></div>
+  </div>
+</div>
+
+<input type="file" id="inputImagen" accept="image/*" hidden>
+<input type="file" id="inputJson" accept=".json,application/json" hidden>
+<input type="file" id="inputJsonDocente" accept=".json,application/json" multiple hidden>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="vendor/peerjs.min.js"></script>
+<script type="module" src="js/clase.js"></script>
+</body>
+</html>

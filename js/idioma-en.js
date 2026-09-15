@@ -484,6 +484,19 @@ export const EN = {
   'Aplicar a todos ahora': 'Apply to everyone now',
   'Configuración aplicada: {resumen}. Enviada a {n} estudiantes conectados; los demás la reciben al entrar.': 'Configuration applied: {resumen}. Sent to {n} connected students; the rest get it when they join.',
 
+  // --- unir piezas
+  'Busca las piezas sueltas (y las que quedarían dentro de un agujero) y las conecta con puentes finos por el camino más corto, para que todo salga calado en una sola pieza sin que se caiga nada. Las uniones son capas: podés moverlas o borrarlas.': 'Finds the loose pieces (and the ones that would sit inside a hole) and connects them with thin bridges along the shortest path, so everything is cut as a single piece with nothing falling out. Bridges are layers: you can move or delete them.',
+  'Grosor de las uniones': 'Bridge thickness',
+  'Unir todas las piezas': 'Join all the pieces',
+  'Quitar las {n} uniones automáticas': 'Remove the {n} automatic bridges',
+  'Unir las piezas': 'Join the pieces',
+  'Todavía no hay nada para unir': 'Nothing to join yet',
+  'Buscando las piezas sueltas…': 'Looking for loose pieces…',
+  '¡Ya es una sola pieza! No hace falta unir nada.': 'It is already a single piece! Nothing to join.',
+  'Unión': 'Bridge',
+  'Listo: agregué {n} uniones y ahora todo es una sola pieza. Si alguna molesta, movela o borrala.': 'Done: I added {n} bridges and now everything is a single piece. If one is in the way, move or delete it.',
+  'Quité {n} uniones automáticas': 'Removed {n} automatic bridges',
+
   // --- model names (render.js)
   'Bangers (cómic)': 'Bangers (comic)',
   'Bebas Neue (condensada)': 'Bebas Neue (condensed)',

@@ -50,6 +50,7 @@ const estado = {
   gotero: false,
   detalleMinMm: 1.5,
   recortarSvg: true,
+  puenteMm: 3,             // grosor de las uniones automáticas
   corte: null,             // último vectorizado
   arrastre: null,
   puntoSoltar: null        // dónde soltaron el elemento «subir imagen»
@@ -1062,6 +1063,11 @@ function panelCortar() {
   let filas = fila(t('Detalle mínimo'), ctlSelect('global.detalleMinMm', estado.detalleMinMm, [{ id: 1, nombre: t('1 mm (láser, cartulina)') }, { id: 1.5, nombre: t('1,5 mm (vinilo)') }, { id: 2.5, nombre: t('2,5 mm (vinilo termoadhesivo)') }]));
   filas += filaLibre('', ctlCheck('global.recortarSvg', estado.recortarSvg, t('Recortar el SVG al dibujo (sin el borde de la hoja)')));
   html += grupo(t('Para la cortadora'), filas);
+  const nAuto = estado.proyecto.capas.filter(c => c.auto === 'union').length;
+  filas = `<p class="panel__nota">${t('Busca las piezas sueltas (y las que quedarían dentro de un agujero) y las conecta con puentes finos por el camino más corto, para que todo salga calado en una sola pieza sin que se caiga nada. Las uniones son capas: podés moverlas o borrarlas.')}</p>`;
+  filas += fila(t('Grosor de las uniones'), ctlNum('global.puenteMm', estado.puenteMm, 1, 20, 0.5, 'mm'));
+  filas += `<div class="acciones acciones--1">${accionBtn('unir', '🔗', t('Unir todas las piezas'), { clase: 'accion--primaria' })}${nAuto ? accionBtn('quitarUniones', '✂', t('Quitar las {n} uniones automáticas', { n: nAuto })) : ''}</div>`;
+  html += grupo(t('Unir las piezas'), filas);
   html += `<div class="acciones acciones--1">
     ${accionBtn('vista:tapete', '▦', t('Revisar en el tapete'), { titulo: t('Muestra la pieza como la ve la cortadora y avisa si hay piezas sueltas o detalles muy finos') })}
     ${accionBtn('svg', '✂', t('Descargar SVG para cortar'), { clase: 'accion--primaria' })}
@@ -1184,6 +1190,8 @@ function ejecutar(accion) {
     case 'deshacer': deshacer(); break;
     case 'rehacer': rehacer(); break;
     case 'vista': cambiarVista(arg); break;
+    case 'unir': unirPiezas(); break;
+    case 'quitarUniones': quitarUniones(); break;
     case 'svg': descargarSvg(); break;
     case 'png': descargarPng(); break;
     case 'copiarSvg': copiarSvg(); break;
@@ -1194,6 +1202,9 @@ function ejecutar(accion) {
 }
 
 // --- arrastrar elementos al lienzo
+// (sin el arrastre nativo del navegador: los iconos son imágenes y, si no,
+// el navegador arrastra la imagen y la suelta como archivo en el lienzo)
+$('paleta').addEventListener('dragstart', e => e.preventDefault());
 let arrastreElemento = null;
 $('paleta').addEventListener('pointerdown', e => {
   if (e.target.closest('input, select, textarea')) return;
@@ -1233,6 +1244,78 @@ document.addEventListener('pointerup', e => {
   else if (d.tipo === 'nombre') agregarTexto((estado.proyecto.autor || prompt(t('¿Cómo te llamás?')) || t('YO')).toUpperCase(), punto);
   else if (d.tipo === 'imagen') { estado.puntoSoltar = punto; pedirImagen(); }
 });
+
+// ------------------------------------------------------------------
+// Unir las piezas sueltas con puentes (árbol de expansión mínima entre los
+// contornos vectorizados: cada unión va del punto más cercano de una pieza
+// al de otra, con solapamiento para que queden bien pegadas).
+// ------------------------------------------------------------------
+function unirPiezas() {
+  const p = estado.proyecto;
+  if (!p.capas.length && p.pieza.tipo === 'silueta') { toast(t('Todavía no hay nada para unir')); return; }
+  toast(t('Buscando las piezas sueltas…'));
+  const r = vectorizarProyecto(p, { espejo: false, recortarCaja: false, detalleMinMm: estado.detalleMinMm, pxPorMm: 3 });
+  const piezas = r.piezas;
+  if (piezas.length < 2) { toast(t('¡Ya es una sola pieza! No hace falta unir nada.')); cambiarVista('tapete'); return; }
+  const esc = 1 / r.pxPorMm;
+  // contornos (exterior + agujeros) en mm, muestreados
+  const contornos = piezas.map(pz => {
+    const todos = [pz.pts].concat(pz.agujeros || []).flat();
+    const paso = Math.max(1, Math.floor(todos.length / 320));
+    const out = [];
+    for (let i = 0; i < todos.length; i += paso) out.push([todos[i][0] * esc, todos[i][1] * esc]);
+    return out;
+  });
+  const masCercanos = (A, B) => {
+    let mejor = { d: Infinity, a: null, b: null };
+    for (const a of A) for (const b of B) {
+      const d = (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]);
+      if (d < mejor.d) mejor = { d, a, b };
+    }
+    mejor.d = Math.sqrt(mejor.d);
+    return mejor;
+  };
+  const aristas = [];
+  for (let i = 0; i < piezas.length; i++) for (let j = i + 1; j < piezas.length; j++) aristas.push(Object.assign({ i, j }, masCercanos(contornos[i], contornos[j])));
+  aristas.sort((u, v) => u.d - v.d);
+  // Kruskal
+  const padre = piezas.map((_, i) => i);
+  const raiz = i => { while (padre[i] !== i) { padre[i] = padre[padre[i]]; i = padre[i]; } return i; };
+  const uniones = [];
+  for (const e of aristas) {
+    const ri = raiz(e.i), rj = raiz(e.j);
+    if (ri === rj) continue;
+    padre[ri] = rj;
+    uniones.push(e);
+    if (uniones.length === piezas.length - 1) break;
+  }
+  anotar();
+  const g = estado.puenteMm;
+  const n0 = p.capas.filter(c => c.auto === 'union').length;
+  uniones.forEach((u, k) => {
+    const dx = u.b[0] - u.a[0], dy = u.b[1] - u.a[1];
+    const capa = nuevaCapa('forma', {
+      forma: 'puente', nombre: `${t('Unión')} ${n0 + k + 1}`, modo: 'sumar', auto: 'union',
+      x: (u.a[0] + u.b[0]) / 2, y: (u.a[1] + u.b[1]) / 2,
+      w: Math.max(g, u.d + 2 * g), h: g, rot: Math.round(Math.atan2(dy, dx) * 180 / Math.PI)
+    });
+    p.capas.push(capa);
+  });
+  estado.sel = null;
+  cambio(true);
+  cambiarVista('tapete');
+  toast(t('Listo: agregué {n} uniones y ahora todo es una sola pieza. Si alguna molesta, movela o borrala.', { n: uniones.length }), 6000);
+}
+function quitarUniones() {
+  const p = estado.proyecto;
+  const n = p.capas.filter(c => c.auto === 'union').length;
+  if (!n) return;
+  anotar();
+  p.capas = p.capas.filter(c => c.auto !== 'union');
+  if (estado.sel && !capaSel()) estado.sel = null;
+  cambio(true);
+  toast(t('Quité {n} uniones automáticas', { n }));
+}
 
 // ------------------------------------------------------------------
 // Elegir forma (modal, desde el botón + de capas)

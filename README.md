@@ -33,7 +33,8 @@ Interfaz en **español** (principal) e **inglés** (botón ES / EN).
     Texto (galería de tipografías, tamaño, espaciado), Formas (galería con el
     dibujo de cada forma), Ajustar (suma/resta, centrar, espejar, orden), Pieza
     (tamaño en mm, base/marco/ventana, **marco negro por lados** con su grosor,
-    espejo) y Cortar (tapete, SVG, PNG,
+    espejo) y Cortar (**unir todas las piezas** con puentes automáticos para
+    que salga calado en una sola pieza, tapete, SVG, PNG,
     guardar/abrir `.json`). Los elementos se tocan o se **arrastran al lienzo**;
     los ajustes del elemento seleccionado aparecen como controles comunes.
   - Lienzo con manijas para mover, escalar y girar; zoom; arrastrar o pegar

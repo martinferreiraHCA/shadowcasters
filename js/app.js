@@ -39,7 +39,8 @@ const ICONO_FORMA = {
 // ------------------------------------------------------------------
 const estado = {
   proyecto: nuevoProyecto(),
-  sel: null,               // id de capa seleccionada, 'pieza', o null
+  sel: null,               // id de capa principal seleccionada, 'pieza', o null
+  multi: new Set(),        // ids de todas las capas seleccionadas (grupos incluidos)
   zoom: 1,
   pan: { x: 0, y: 0 },
   mostrarFotos: true,
@@ -99,6 +100,34 @@ function leerValor(input) {
 
 const capaSel = () => (estado.sel && estado.sel !== 'pieza') ? estado.proyecto.capas.find(c => c.id === estado.sel) || null : null;
 const idx = id => estado.proyecto.capas.findIndex(c => c.id === id);
+const seleccionados = () => estado.proyecto.capas.filter(c => estado.multi.has(c.id));
+// una selección siempre incluye a los grupos enteros
+function expandirGrupos(ids) {
+  const set = new Set(ids);
+  const grupos = new Set(estado.proyecto.capas.filter(c => set.has(c.id) && c.grupo).map(c => c.grupo));
+  for (const c of estado.proyecto.capas) if (c.grupo && grupos.has(c.grupo)) set.add(c.id);
+  return set;
+}
+function esquinasCapa(capa) {
+  const c = cajaCapa(capa);
+  return ESQUINAS.map(([sx, sy]) => deLocal(capa, { x: sx * c.w / 2, y: sy * c.h / 2 }));
+}
+// caja alineada (mm) que envuelve varias capas
+function cajaGrupo(capas) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const capa of capas) for (const q of esquinasCapa(capa)) { x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y); }
+  return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+}
+function manijasGrupo(caja) {
+  const lista = ESQUINAS.map(([sx, sy]) => ({ tipo: 'escalar', sx, sy, p: { x: caja.cx + sx * caja.w / 2, y: caja.cy + sy * caja.h / 2 } }));
+  lista.push({ tipo: 'rotar', p: { x: caja.cx, y: caja.y0 - 26 / pxPorMm } });
+  return lista;
+}
+function manijaGrupoEn(caja, p) {
+  const rad = 11 / pxPorMm;
+  for (const m of manijasGrupo(caja)) if (Math.hypot(m.p.x - p.x, m.p.y - p.y) <= rad) return m;
+  return null;
+}
 
 // ------------------------------------------------------------------
 // Guardado: el editor avisa (con retraso) y clase.js decide dónde guardar
@@ -144,6 +173,8 @@ function rehacer() {
 function cambio(todo) {
   estado.proyecto.modificado = Date.now();
   estado.corte = null;
+  for (const id of Array.from(estado.multi)) if (idx(id) < 0) estado.multi.delete(id);
+  if (estado.sel && estado.sel !== 'pieza' && !estado.multi.has(estado.sel)) estado.sel = estado.multi.size ? Array.from(estado.multi)[0] : null;
   redibujarLienzo();
   redibujarEscenario();
   refrescarInfo();
@@ -259,30 +290,51 @@ function dibujarLienzo() {
     ctx.drawImage(comp, origen.x, origen.y, wPx, hPx);
   }
 
-  // selección
+  // selección: contorno de cada elemento; manijas del elemento (uno) o del conjunto (varios)
   const capa = capaSel();
-  if (capa) {
-    const c = cajaCapa(capa);
+  const sel = seleccionados();
+  const manija = (q, tipo) => {
+    ctx.beginPath();
+    if (tipo === 'rotar') { ctx.arc(q.x, q.y, 8, 0, Math.PI * 2); ctx.fillStyle = '#4C97FF'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('↻', q.x, q.y + 0.5); }
+    else { ctx.rect(q.x - 6, q.y - 6, 12, 12); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#4C97FF'; ctx.lineWidth = 2; ctx.stroke(); }
+  };
+  for (const c of sel) {
+    const cc = cajaCapa(c);
     ctx.save();
-    const centro = aPx(capa.x, capa.y);
+    const centro = aPx(c.x, c.y);
     ctx.translate(centro.x, centro.y);
-    ctx.rotate((capa.rot || 0) * Math.PI / 180);
-    ctx.strokeStyle = '#4C97FF'; ctx.lineWidth = 2;
-    ctx.strokeRect(-c.w * pxPorMm / 2, -c.h * pxPorMm / 2, c.w * pxPorMm, c.h * pxPorMm);
-    ctx.beginPath(); ctx.moveTo(0, -c.h * pxPorMm / 2); ctx.lineTo(0, -c.h * pxPorMm / 2 - 26); ctx.stroke();
+    ctx.rotate((c.rot || 0) * Math.PI / 180);
+    ctx.strokeStyle = sel.length > 1 ? 'rgba(76,151,255,0.7)' : '#4C97FF'; ctx.lineWidth = sel.length > 1 ? 1.5 : 2;
+    ctx.strokeRect(-cc.w * pxPorMm / 2, -cc.h * pxPorMm / 2, cc.w * pxPorMm, cc.h * pxPorMm);
+    if (sel.length === 1) { ctx.beginPath(); ctx.moveTo(0, -cc.h * pxPorMm / 2); ctx.lineTo(0, -cc.h * pxPorMm / 2 - 26); ctx.stroke(); }
     ctx.restore();
-    for (const m of manijas(capa)) {
-      const q = aPx(m.p.x, m.p.y);
-      ctx.beginPath();
-      if (m.tipo === 'rotar') { ctx.arc(q.x, q.y, 8, 0, Math.PI * 2); ctx.fillStyle = '#4C97FF'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#fff'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('↻', q.x, q.y + 0.5); }
-      else { ctx.rect(q.x - 6, q.y - 6, 12, 12); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#4C97FF'; ctx.lineWidth = 2; ctx.stroke(); }
-    }
+  }
+  if (sel.length === 1 && capa) {
+    for (const m of manijas(capa)) manija(aPx(m.p.x, m.p.y), m.tipo);
+  } else if (sel.length > 1) {
+    const g = cajaGrupo(sel);
+    const a0 = aPx(g.x0, g.y0), a1 = aPx(g.x1, g.y1);
+    ctx.save(); ctx.setLineDash([6, 4]); ctx.strokeStyle = '#4C97FF'; ctx.lineWidth = 2;
+    ctx.strokeRect(a0.x, a0.y, a1.x - a0.x, a1.y - a0.y);
+    ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo((a0.x + a1.x) / 2, a0.y); ctx.lineTo((a0.x + a1.x) / 2, a0.y - 26); ctx.stroke();
+    ctx.restore();
+    for (const m of manijasGrupo(g)) manija(aPx(m.p.x, m.p.y), m.tipo);
+    const esGrupo = sel.every(c => c.grupo && c.grupo === sel[0].grupo);
+    ctx.fillStyle = '#4C97FF'; ctx.font = 'bold 11px "Helvetica Neue", Arial, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText((esGrupo ? '🔗 ' : '') + t(sel.length === 1 ? '{n} elemento' : '{n} elementos', { n: sel.length }), a0.x, a0.y - 6);
+  }
+  // recuadro de selección mientras se arrastra sobre el fondo
+  const ar = estado.arrastre;
+  if (ar && ar.tipo === 'marquee') {
+    const q0 = aPx(Math.min(ar.p0.x, ar.p1.x), Math.min(ar.p0.y, ar.p1.y)), q1 = aPx(Math.max(ar.p0.x, ar.p1.x), Math.max(ar.p0.y, ar.p1.y));
+    ctx.save(); ctx.fillStyle = 'rgba(76,151,255,0.12)'; ctx.strokeStyle = '#4C97FF'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
+    ctx.fillRect(q0.x, q0.y, q1.x - q0.x, q1.y - q0.y); ctx.strokeRect(q0.x, q0.y, q1.x - q0.x, q1.y - q0.y); ctx.restore();
   }
 
   $('lienzoVacio').style.display = p.capas.length ? 'none' : '';
   const zoomTxt = Math.round(estado.zoom * 100) + ' %';
   $('lienzoPie').innerHTML = `<span>${t('Pieza')} <b>${pz.anchoMm} × ${pz.altoMm} mm</b></span><span>${t(p.capas.length === 1 ? '{n} capa' : '{n} capas', { n: p.capas.length })}</span>` +
-    (capa ? `<span>${t('Seleccionada:')} <b>${escapar(capa.nombre)}</b> (${redondear(cajaCapa(capa).w)} × ${redondear(cajaCapa(capa).h)} mm)</span>` : `<span>${t('Hacé clic en un elemento para editarlo · arrastralo para moverlo')}</span>`) +
+    (sel.length > 1 ? `<span><b>${t(sel.length === 1 ? '{n} elemento' : '{n} elementos', { n: sel.length })}</b> · ${t('arrastrá para mover · Ctrl+G agrupa')}</span>` : capa ? `<span>${t('Seleccionada:')} <b>${escapar(capa.nombre)}</b> (${redondear(cajaCapa(capa).w)} × ${redondear(cajaCapa(capa).h)} mm)</span>` : `<span>${t('Clic en un elemento para editarlo · arrastrá sobre el fondo para seleccionar varios')}</span>`) +
     `<span style="margin-left:auto">zoom ${zoomTxt}</span>`;
 }
 
@@ -315,8 +367,19 @@ canvas.addEventListener('pointerdown', e => {
     terminarGotero();
   }
 
+  const sel = seleccionados();
   const capa = capaSel();
-  if (capa) {
+  if (sel.length > 1) {
+    const g = cajaGrupo(sel);
+    const m = manijaGrupoEn(g, p);
+    if (m) {
+      anotar();
+      const inicio = sel.map(c => ({ c, x: c.x, y: c.y, w: c.w, h: c.h, rot: c.rot || 0, tam: c.tamMm }));
+      if (m.tipo === 'rotar') estado.arrastre = { tipo: 'gRotar', inicio, centro: { x: g.cx, y: g.cy } };
+      else estado.arrastre = { tipo: 'gEscalar', inicio, anc: { x: g.cx - m.sx * g.w / 2, y: g.cy - m.sy * g.h / 2 }, d0: Math.max(1e-3, Math.hypot(g.w, g.h)) };
+      return;
+    }
+  } else if (capa) {
     const m = manijaEn(capa, p);
     if (m) {
       anotar();
@@ -328,42 +391,75 @@ canvas.addEventListener('pointerdown', e => {
   }
   const golpe = capaEn(p);
   if (golpe) {
-    if (golpe.id !== estado.sel) seleccionar(golpe.id);
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      // sumar o quitar de la selección (con su grupo)
+      const ids = new Set(estado.multi);
+      const suyos = expandirGrupos([golpe.id]);
+      if (ids.has(golpe.id)) for (const id of suyos) ids.delete(id); else for (const id of suyos) ids.add(id);
+      seleccionarVarios(Array.from(ids));
+      return;
+    }
+    if (!estado.multi.has(golpe.id)) seleccionar(golpe.id);
     anotar();
-    estado.arrastre = { tipo: 'mover', capa: golpe, dx: golpe.x - p.x, dy: golpe.y - p.y, movio: false };
+    estado.arrastre = { tipo: 'mover', principal: golpe, inicio: seleccionados().map(c => ({ c, x: c.x, y: c.y })), p0: p, movio: false };
     return;
   }
-  // clic en el fondo: deseleccionar
-  if (estado.sel && estado.sel !== 'pieza') seleccionar(null);
+  // fondo: recuadro de selección (con Shift se suma a lo ya seleccionado)
+  const aditivo = e.shiftKey || e.ctrlKey || e.metaKey;
+  if (!aditivo && estado.multi.size) seleccionar(null);
+  estado.arrastre = { tipo: 'marquee', p0: p, p1: p, previo: aditivo ? new Set(estado.multi) : new Set() };
 });
 
 canvas.addEventListener('pointermove', e => {
   const a = estado.arrastre;
   if (!a) {
     if (estado.gotero) return;
-    const capa = capaSel();
     const p = puntoDeEvento(e);
+    const sel = seleccionados();
     let cursor = 'default';
-    if (capa) { const m = manijaEn(capa, p); if (m) cursor = m.tipo === 'rotar' ? 'grab' : 'nwse-resize'; }
+    if (sel.length > 1) { const m = manijaGrupoEn(cajaGrupo(sel), p); if (m) cursor = m.tipo === 'rotar' ? 'grab' : 'nwse-resize'; }
+    else if (sel.length === 1) { const m = manijaEn(sel[0], p); if (m) cursor = m.tipo === 'rotar' ? 'grab' : 'nwse-resize'; }
     if (cursor === 'default' && capaEn(p)) cursor = 'move';
+    if (cursor === 'default') cursor = 'crosshair';
     canvas.style.cursor = cursor;
     return;
   }
   const p = puntoDeEvento(e);
   const capa = a.capa;
+  if (a.tipo === 'marquee') {
+    a.p1 = p; redibujarLienzo(); return;
+  }
   if (a.tipo === 'mover') {
-    let x = p.x + a.dx, y = p.y + a.dy;
-    if (!e.altKey) {          // imán al centro y a los bordes de la pieza
+    let dx = p.x - a.p0.x, dy = p.y - a.p0.y;
+    if (!e.altKey) {          // imán al centro de la pieza (con el elemento que se agarró)
+      const ini = a.inicio.find(i => i.c === a.principal) || a.inicio[0];
       const pz = estado.proyecto.pieza, im = 3 / estado.zoom;
-      if (Math.abs(x - pz.anchoMm / 2) < im) x = pz.anchoMm / 2;
-      if (Math.abs(y - pz.altoMm / 2) < im) y = pz.altoMm / 2;
+      if (Math.abs(ini.x + dx - pz.anchoMm / 2) < im) dx = pz.anchoMm / 2 - ini.x;
+      if (Math.abs(ini.y + dy - pz.altoMm / 2) < im) dy = pz.altoMm / 2 - ini.y;
     }
-    capa.x = x; capa.y = y; a.movio = true;
+    for (const i of a.inicio) { i.c.x = i.x + dx; i.c.y = i.y + dy; }
+    a.movio = true;
   } else if (a.tipo === 'rotar') {
     let ang = Math.atan2(p.y - capa.y, p.x - capa.x) * 180 / Math.PI + 90;
     if (!e.shiftKey) { const s = Math.round(ang / 15) * 15; if (Math.abs(ang - s) < 4) ang = s; } else ang = Math.round(ang / 15) * 15;
     ang = ((ang + 180) % 360 + 360) % 360 - 180;
     capa.rot = Math.round(ang);
+  } else if (a.tipo === 'gRotar') {
+    let ang = Math.atan2(p.y - a.centro.y, p.x - a.centro.x) * 180 / Math.PI + 90;
+    if (!e.shiftKey) { const s = Math.round(ang / 15) * 15; if (Math.abs(ang - s) < 4) ang = s; } else ang = Math.round(ang / 15) * 15;
+    const r = ang * Math.PI / 180, cos = Math.cos(r), sin = Math.sin(r);
+    for (const i of a.inicio) {
+      const dx = i.x - a.centro.x, dy = i.y - a.centro.y;
+      i.c.x = a.centro.x + dx * cos - dy * sin; i.c.y = a.centro.y + dx * sin + dy * cos;
+      i.c.rot = Math.round((((i.rot + ang) + 180) % 360 + 360) % 360 - 180);
+    }
+  } else if (a.tipo === 'gEscalar') {
+    const sEsc = Math.max(0.05, Math.hypot(p.x - a.anc.x, p.y - a.anc.y) / a.d0);
+    for (const i of a.inicio) {
+      i.c.x = a.anc.x + (i.x - a.anc.x) * sEsc; i.c.y = a.anc.y + (i.y - a.anc.y) * sEsc;
+      if (i.c.tipo === 'texto') i.c.tamMm = Math.max(3, i.tam * sEsc);
+      else { i.c.w = Math.max(1, i.w * sEsc); i.c.h = Math.max(1, i.h * sEsc); }
+    }
   } else if (a.tipo === 'escalar') {
     const r = -(capa.rot || 0) * Math.PI / 180;
     const dx = p.x - a.anc.x, dy = p.y - a.anc.y;
@@ -390,6 +486,18 @@ function soltar(e) {
   const a = estado.arrastre;
   if (!a) return;
   estado.arrastre = null;
+  if (a.tipo === 'marquee') {
+    const x0 = Math.min(a.p0.x, a.p1.x), y0 = Math.min(a.p0.y, a.p1.y), x1 = Math.max(a.p0.x, a.p1.x), y1 = Math.max(a.p0.y, a.p1.y);
+    if (x1 - x0 < 1 && y1 - y0 < 1) { redibujarLienzo(); return; }
+    const ids = new Set(a.previo);
+    for (const c of estado.proyecto.capas) {
+      if (!c.visible) continue;
+      const g = cajaGrupo([c]);
+      if (g.x1 >= x0 && g.x0 <= x1 && g.y1 >= y0 && g.y0 <= y1) ids.add(c.id);
+    }
+    seleccionarVarios(Array.from(ids));
+    return;
+  }
   if (a.tipo === 'mover' && !a.movio) { estado.historial.pop(); return; }
   cambio(false);
 }
@@ -415,15 +523,16 @@ $('zoomIgual').addEventListener('click', () => { estado.zoom = 1; estado.pan = {
 
 // teclado
 zona.addEventListener('keydown', e => {
-  const capa = capaSel();
+  const sel = seleccionados();
   if (e.key === 'Escape') { if (estado.gotero) terminarGotero(); else seleccionar(null); return; }
-  if (!capa) return;
+  if (!sel.length) return;
   const paso = e.shiftKey ? 5 : 1;
-  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); eliminar(capa); }
-  else if (e.key === 'ArrowLeft') { e.preventDefault(); anotar(); capa.x -= paso; cambio(false); }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); anotar(); capa.x += paso; cambio(false); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); anotar(); capa.y -= paso; cambio(false); }
-  else if (e.key === 'ArrowDown') { e.preventDefault(); anotar(); capa.y += paso; cambio(false); }
+  const empujar = (dx, dy) => { e.preventDefault(); anotar(); for (const c of sel) { c.x += dx; c.y += dy; } cambio(false); };
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); eliminarVarios(sel); }
+  else if (e.key === 'ArrowLeft') empujar(-paso, 0);
+  else if (e.key === 'ArrowRight') empujar(paso, 0);
+  else if (e.key === 'ArrowUp') empujar(0, -paso);
+  else if (e.key === 'ArrowDown') empujar(0, paso);
 });
 document.addEventListener('keydown', e => {
   const enCampo = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName);
@@ -431,7 +540,9 @@ document.addEventListener('keydown', e => {
     const k = e.key.toLowerCase();
     if (k === 'z' && !e.shiftKey) { e.preventDefault(); deshacer(); }
     else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); rehacer(); }
-    else if (k === 'd') { e.preventDefault(); const c = capaSel(); if (c) duplicar(c); }
+    else if (k === 'd') { e.preventDefault(); const sel = seleccionados(); if (sel.length) duplicarVarios(sel); }
+    else if (k === 'g') { e.preventDefault(); if (e.shiftKey) desagrupar(); else agrupar(); }
+    else if (k === 'a' && !$('taller').hidden) { e.preventDefault(); seleccionarVarios(estado.proyecto.capas.filter(c => c.visible).map(c => c.id)); }
     else if (k === 's') { e.preventDefault(); guardarJson(); }
   }
 });
@@ -658,6 +769,14 @@ document.querySelectorAll('[data-tam]').forEach(b => b.addEventListener('click',
 // ------------------------------------------------------------------
 function seleccionar(id) {
   estado.sel = id;
+  estado.multi = (id && id !== 'pieza') ? expandirGrupos([id]) : new Set();
+  if (estado.gotero) terminarGotero();
+  refrescarInfo(); refrescarCapas(); refrescarPaleta(); redibujarLienzo();
+}
+function seleccionarVarios(ids) {
+  const set = expandirGrupos(ids.filter(id => idx(id) >= 0));
+  estado.multi = set;
+  estado.sel = set.size ? (set.has(estado.sel) ? estado.sel : Array.from(set)[0]) : null;
   if (estado.gotero) terminarGotero();
   refrescarInfo(); refrescarCapas(); refrescarPaleta(); redibujarLienzo();
 }
@@ -665,12 +784,13 @@ function seleccionar(id) {
 function refrescarInfo() {
   const info = $('infoCapa');
   const capa = capaSel();
-  info.classList.toggle('info--sin-capa', !capa);
+  const varios = estado.multi.size > 1;
+  info.classList.toggle('info--sin-capa', !capa || varios);
   info.classList.toggle('info--pieza', estado.sel === 'pieza');
   $('tilePieza').classList.toggle('pieza-tile--sel', estado.sel === 'pieza');
-  if (!capa) {
+  if (!capa || varios) {
     const n = $('infoNombre');
-    if (document.activeElement !== n) n.value = estado.sel === 'pieza' ? t('La pieza: ajustala en el panel «Pieza»') : t('Ninguna capa seleccionada');
+    if (document.activeElement !== n) n.value = varios ? t('{n} elementos seleccionados', { n: estado.multi.size }) : estado.sel === 'pieza' ? t('La pieza: ajustala en el panel «Pieza»') : t('Ninguna capa seleccionada');
     n.disabled = true;
     return;
   }
@@ -711,13 +831,15 @@ function refrescarCapas() {
   lista.innerHTML = '';
   const capas = estado.proyecto.capas;
   if (!capas.length) { lista.innerHTML = `<div class="capas__vacio">${t('Acá van a aparecer tus capas: cada imagen, texto o forma que agregues.')}</div>`; return; }
+  const grupos = []; for (const c of capas) if (c.grupo && !grupos.includes(c.grupo)) grupos.push(c.grupo);
   for (let i = capas.length - 1; i >= 0; i--) {
     const c = capas[i];
     const tile = document.createElement('div');
-    tile.className = 'capa-tile' + (c.id === estado.sel ? ' capa-tile--sel' : '') + (c.visible ? '' : ' capa-tile--oculta') + (c.modo === 'restar' ? ' capa-tile--resta' : '');
-    tile.dataset.id = c.id; tile.title = c.nombre; tile.draggable = true;
+    tile.className = 'capa-tile' + (estado.multi.has(c.id) ? ' capa-tile--sel' : '') + (c.visible ? '' : ' capa-tile--oculta') + (c.modo === 'restar' ? ' capa-tile--resta' : '');
+    tile.dataset.id = c.id; tile.title = c.nombre + (c.grupo ? ' · ' + t('grupo {n}', { n: grupos.indexOf(c.grupo) + 1 }) : ''); tile.draggable = true;
     tile.innerHTML = `<button type="button" class="capa-tile__modo" data-accion="modo" title="${c.modo === 'restar' ? t('Resta (agujero). Clic para sumar') : t('Suma (figura). Clic para restar')}">${c.modo === 'restar' ? '−' : '+'}</button>
       <button type="button" class="capa-tile__borrar" data-accion="eliminar" title="${t('Eliminar')}">✕</button>
+      ${c.grupo ? `<span class="capa-tile__grupo" style="background:hsl(${(grupos.indexOf(c.grupo) * 67) % 360} 70% 45%)">🔗${grupos.indexOf(c.grupo) + 1}</span>` : ''}
       <canvas width="104" height="104"></canvas><span>${ICONO_CAPA[c.tipo] || ''} ${escapar(c.nombre)}</span>`;
     lista.appendChild(tile);
     dibujarMiniatura(tile.querySelector('canvas'), c);
@@ -742,7 +864,14 @@ $('listaCapas').addEventListener('click', e => {
   const tile = e.target.closest('.capa-tile'); if (!tile) return;
   const capa = estado.proyecto.capas.find(c => c.id === tile.dataset.id); if (!capa) return;
   const accion = e.target.closest('[data-accion]');
-  if (!accion) { seleccionar(capa.id); return; }
+  if (!accion) {
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      const ids = new Set(estado.multi); const suyos = expandirGrupos([capa.id]);
+      if (ids.has(capa.id)) for (const id of suyos) ids.delete(id); else for (const id of suyos) ids.add(id);
+      seleccionarVarios(Array.from(ids));
+    } else seleccionar(capa.id);
+    return;
+  }
   if (accion.dataset.accion === 'modo') { anotar(); capa.modo = capa.modo === 'restar' ? 'sumar' : 'restar'; seleccionar(capa.id); cambio(true); }
   if (accion.dataset.accion === 'eliminar') eliminar(capa);
 });
@@ -775,7 +904,7 @@ function agregarCapa(capa, punto) {
   const pz = estado.proyecto.pieza;
   if (punto) { capa.x = limitar(punto.x, 0, pz.anchoMm); capa.y = limitar(punto.y, 0, pz.altoMm); }
   estado.proyecto.capas.push(capa);
-  estado.sel = capa.id;
+  estado.sel = capa.id; estado.multi = new Set([capa.id]);
   cambio(true);
 }
 function agregarTexto(texto, punto, fuente) {
@@ -822,7 +951,7 @@ async function agregarImagen(archivo, reemplazarId) {
       existente.src = src; existente.ancho = ancho; existente.alto = alto;
       const s = Math.min(existente.w / ancho, existente.h / alto);
       existente.w = ancho * s; existente.h = alto * s;
-      estado.sel = existente.id; cambio(true);
+      estado.sel = existente.id; estado.multi = new Set([existente.id]); cambio(true);
       return;
     }
     const s = Math.min((pz.anchoMm * 0.7) / ancho, (pz.altoMm * 0.7) / alto);
@@ -841,28 +970,69 @@ async function agregarImagen(archivo, reemplazarId) {
     toast(aviso, 4200);
   } catch (e) { toast(e.message || t('No se pudo cargar la imagen')); }
 }
-function duplicar(capa) {
+function duplicar(capa) { duplicarVarios([capa]); }
+function duplicarVarios(capas) {
+  if (!capas.length) return;
   anotar();
-  const copia = clonar(capa);
-  copia.id = nuevaCapa(capa.tipo).id;
-  copia.nombre = (capa.nombre || capa.tipo) + ' ' + t('copia');
-  copia.x += 6; copia.y += 6;
-  estado.proyecto.capas.splice(idx(capa.id) + 1, 0, copia);
-  estado.sel = copia.id;
+  const nuevosGrupos = new Map();
+  const copias = [];
+  const ordenadas = capas.slice().sort((a, b) => idx(a.id) - idx(b.id));
+  for (const capa of ordenadas) {
+    const copia = clonar(capa);
+    copia.id = nuevaCapa(capa.tipo).id;
+    copia.nombre = (capa.nombre || capa.tipo) + ' ' + t('copia');
+    copia.x += 6; copia.y += 6;
+    if (capa.grupo) { if (!nuevosGrupos.has(capa.grupo)) nuevosGrupos.set(capa.grupo, nuevoGrupoId()); copia.grupo = nuevosGrupos.get(capa.grupo); }
+    copias.push(copia);
+  }
+  const arriba = Math.max(...ordenadas.map(c => idx(c.id)));
+  estado.proyecto.capas.splice(arriba + 1, 0, ...copias);
+  estado.multi = new Set(copias.map(c => c.id)); estado.sel = copias[0].id;
   cambio(true);
 }
-function eliminar(capa) {
+function eliminar(capa) { eliminarVarios([capa]); }
+function eliminarVarios(capas) {
+  if (!capas.length) return;
   anotar();
-  estado.proyecto.capas.splice(idx(capa.id), 1);
-  if (estado.sel === capa.id) estado.sel = null;
+  const ids = new Set(capas.map(c => c.id));
+  estado.proyecto.capas = estado.proyecto.capas.filter(c => !ids.has(c.id));
+  estado.multi = new Set(); estado.sel = null;
   cambio(true);
 }
-function mover(capa, d) {
-  const i = idx(capa.id), j = limitar(i + d, 0, estado.proyecto.capas.length - 1);
-  if (i === j) return;
+function mover(capa, d) { moverVarios([capa], d); }
+// adelante (+1) / atrás (−1) manteniendo el orden relativo del conjunto
+function moverVarios(capas, d) {
+  const ids = new Set(capas.map(c => c.id));
+  const lista = estado.proyecto.capas;
+  let cambioAlgo = false;
+  const indices = lista.map((c, i) => ids.has(c.id) ? i : -1).filter(i => i >= 0);
+  if (d > 0) indices.reverse();
   anotar();
-  estado.proyecto.capas.splice(i, 1); estado.proyecto.capas.splice(j, 0, capa);
+  for (const i of indices) {
+    const j = i + d;
+    if (j < 0 || j >= lista.length || ids.has(lista[j].id)) continue;
+    [lista[i], lista[j]] = [lista[j], lista[i]]; cambioAlgo = true;
+  }
+  if (!cambioAlgo) { estado.historial.pop(); return; }
   cambio(true);
+}
+const nuevoGrupoId = () => 'g' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+function agrupar() {
+  const sel = seleccionados();
+  if (sel.length < 2) { toast(t('Seleccioná al menos dos elementos (arrastrá un recuadro sobre el fondo o usá Shift+clic)')); return; }
+  anotar();
+  const g = nuevoGrupoId();
+  for (const c of sel) c.grupo = g;
+  cambio(true);
+  toast(t('Agrupados: ahora se mueven, giran y escalan juntos. Ctrl+Shift+G para desagrupar.'), 4000);
+}
+function desagrupar() {
+  const sel = seleccionados().filter(c => c.grupo);
+  if (!sel.length) return;
+  anotar();
+  for (const c of sel) delete c.grupo;
+  cambio(true);
+  toast(t('Desagrupados'));
 }
 function ajustarAPieza(capa) {
   const pz = estado.proyecto.pieza;
@@ -1011,7 +1181,35 @@ function panelFormas() {
 function panelEditar() {
   const capa = capaSel();
   let html = seccion('editar', '🎛 ' + t('Ajustar'), t('Todo lo que le podés hacer al elemento seleccionado.'));
-  if (!capa) return html + nota(t('Seleccioná un elemento en el lienzo (o en la lista de capas) para ajustarlo.'));
+  const sel = seleccionados();
+  if (!capa) return html + nota(t('Seleccioná un elemento en el lienzo (o en la lista de capas) para ajustarlo. Para elegir varios, arrastrá un recuadro sobre el fondo o usá Shift+clic.'));
+  if (sel.length > 1) {
+    const esGrupo = sel.every(c => c.grupo && c.grupo === sel[0].grupo);
+    const algunGrupo = sel.some(c => c.grupo);
+    const todosResta = sel.every(c => c.modo === 'restar'), todosSuma = sel.every(c => c.modo !== 'restar');
+    html += `<div class="ajustes"><div class="ajustes__titulo">${esGrupo ? '🔗 ' : ''}${t(sel.length === 1 ? '{n} elemento' : '{n} elementos', { n: sel.length })}${esGrupo ? ' · ' + t('grupo') : ''}</div>
+      <p class="panel__nota">${t('Arrastrá cualquiera para mover todos; las manijas del recuadro escalan y giran el conjunto.')}</p>
+      <div class="modo">
+        ${esGrupo ? `<button type="button" class="modo__btn" data-accion="desagrupar">✂ ${t('Desagrupar')}</button>` : `<button type="button" class="modo__btn modo__btn--activo-azul" data-accion="agrupar">🔗 ${t('Agrupar')}</button>`}
+        ${!esGrupo && algunGrupo ? `<button type="button" class="modo__btn" data-accion="desagrupar">✂ ${t('Desagrupar')}</button>` : ''}
+      </div>
+      <div class="modo">
+        <button type="button" class="modo__btn modo__btn--suma ${todosSuma ? 'modo__btn--activo' : ''}" data-accion="modo:sumar">＋ ${t('Suma (figura)')}</button>
+        <button type="button" class="modo__btn modo__btn--resta ${todosResta ? 'modo__btn--activo' : ''}" data-accion="modo:restar">－ ${t('Resta (agujero)')}</button>
+      </div>
+    </div>`;
+    html += `<div class="acciones">
+      ${accionBtn('centrar', '⌖', t('Centrar'))}
+      ${accionBtn('flipX', '⇋', t('Espejar'))}
+      ${accionBtn('flipY', '⇅', t('Voltear'))}
+      ${accionBtn('adelante', '⏫', t('Adelante'))}
+      ${accionBtn('atras', '⏬', t('Atrás'))}
+      ${accionBtn('duplicar', '⧉', t('Duplicar'))}
+      ${accionBtn('visible', '◌', t('Ocultar'))}
+      ${accionBtn('eliminar', '🗑', t('Eliminar'), { clase: 'accion--peligro' })}
+    </div>`;
+    return html;
+  }
   html += `<div class="ajustes"><div class="ajustes__titulo">${ICONO_CAPA[capa.tipo] || ''} ${escapar(capa.nombre)}</div>
     <div class="modo">
       <button type="button" class="modo__btn modo__btn--suma ${capa.modo !== 'restar' ? 'modo__btn--activo' : ''}" data-accion="modo:sumar" title="${t('Lo negro se corta como figura')}">＋ ${t('Suma (figura)')}</button>
@@ -1158,6 +1356,7 @@ $('paleta').addEventListener('click', e => {
 
 function ejecutar(accion) {
   const capa = capaSel();
+  const sel = seleccionados();
   const [nombre, arg] = accion.split(':');
   switch (nombre) {
     case 'imagen': pedirImagen(); break;
@@ -1177,16 +1376,23 @@ function ejecutar(accion) {
       else agregarTexto(null, null, arg);
       break;
     case 'forma': agregarForma(arg); break;
-    case 'modo': if (capa) { anotar(); capa.modo = arg; cambio(true); } break;
-    case 'centrar': if (capa) { anotar(); capa.x = estado.proyecto.pieza.anchoMm / 2; capa.y = estado.proyecto.pieza.altoMm / 2; cambio(true); } break;
+    case 'modo': if (sel.length) { anotar(); for (const c of sel) c.modo = arg; cambio(true); } break;
+    case 'centrar': if (sel.length) {
+      anotar();
+      const g = cajaGrupo(sel), dx = estado.proyecto.pieza.anchoMm / 2 - g.cx, dy = estado.proyecto.pieza.altoMm / 2 - g.cy;
+      for (const c of sel) { c.x += dx; c.y += dy; }
+      cambio(true);
+    } break;
     case 'ajustar': if (capa) { anotar(); ajustarAPieza(capa); cambio(true); } break;
-    case 'flipX': if (capa) { anotar(); capa.flipX = !capa.flipX; cambio(false); } break;
-    case 'flipY': if (capa) { anotar(); capa.flipY = !capa.flipY; cambio(false); } break;
-    case 'adelante': if (capa) mover(capa, 1); break;
-    case 'atras': if (capa) mover(capa, -1); break;
-    case 'duplicar': if (capa) duplicar(capa); break;
-    case 'visible': if (capa) { anotar(); capa.visible = !capa.visible; cambio(true); } break;
-    case 'eliminar': if (capa) eliminar(capa); break;
+    case 'flipX': if (sel.length) { anotar(); for (const c of sel) c.flipX = !c.flipX; cambio(false); } break;
+    case 'flipY': if (sel.length) { anotar(); for (const c of sel) c.flipY = !c.flipY; cambio(false); } break;
+    case 'adelante': if (sel.length) moverVarios(sel, 1); break;
+    case 'atras': if (sel.length) moverVarios(sel, -1); break;
+    case 'duplicar': if (sel.length) duplicarVarios(sel); break;
+    case 'visible': if (sel.length) { anotar(); const v = !sel[0].visible; for (const c of sel) c.visible = v; cambio(true); } break;
+    case 'eliminar': if (sel.length) eliminarVarios(sel); break;
+    case 'agrupar': agrupar(); break;
+    case 'desagrupar': desagrupar(); break;
     case 'deshacer': deshacer(); break;
     case 'rehacer': rehacer(); break;
     case 'vista': cambiarVista(arg); break;
@@ -1301,7 +1507,7 @@ function unirPiezas() {
     });
     p.capas.push(capa);
   });
-  estado.sel = null;
+  estado.sel = null; estado.multi = new Set();
   cambio(true);
   cambiarVista('tapete');
   toast(t('Listo: agregué {n} uniones y ahora todo es una sola pieza. Si alguna molesta, movela o borrala.', { n: uniones.length }), 6000);
@@ -1396,7 +1602,7 @@ function nuevo() {
 function cargarProyecto(p) {
   estado.proyecto = p;
   estado.historial.length = 0; estado.futuro.length = 0;
-  estado.sel = null; estado.zoom = 1; estado.pan = { x: 0, y: 0 }; estado.corte = null;
+  estado.sel = null; estado.multi = new Set(); estado.zoom = 1; estado.pan = { x: 0, y: 0 }; estado.corte = null;
   if (estado.gotero) terminarGotero();
   $('nombreProyecto').value = p.nombre || '';
   $('autorProyecto').value = p.autor || '';
@@ -1461,8 +1667,11 @@ document.querySelectorAll('[data-menu]').forEach(b => b.addEventListener('click'
   else if (k === 'svg') descargarSvg(); else if (k === 'png') descargarPng();
   else if (k === 'deshacer') deshacer(); else if (k === 'rehacer') rehacer();
   else if (k === 'tutorial') abrirModal($('modalAyuda'));
-  else if (k === 'duplicar') { if (capa) duplicar(capa); else toast(t('Seleccioná una capa primero')); }
-  else if (k === 'eliminar') { if (capa) eliminar(capa); else toast(t('Seleccioná una capa primero')); }
+  else if (k === 'duplicar') { const sel = seleccionados(); if (sel.length) duplicarVarios(sel); else toast(t('Seleccioná una capa primero')); }
+  else if (k === 'eliminar') { const sel = seleccionados(); if (sel.length) eliminarVarios(sel); else toast(t('Seleccioná una capa primero')); }
+  else if (k === 'todo') seleccionarVarios(estado.proyecto.capas.filter(c => c.visible).map(c => c.id));
+  else if (k === 'agrupar') agrupar();
+  else if (k === 'desagrupar') desagrupar();
 }));
 $('btnDescargarSvg').addEventListener('click', descargarSvg);
 $('btnGuardarJson').addEventListener('click', guardarJson);

@@ -37,8 +37,10 @@ Interfaz en **español** (principal) e **inglés** (botón ES / EN).
     que salga calado en una sola pieza, tapete, SVG, PNG,
     guardar/abrir `.json`). Los elementos se tocan o se **arrastran al lienzo**;
     los ajustes del elemento seleccionado aparecen como controles comunes.
-  - Lienzo con manijas para mover, escalar y girar; zoom; arrastrar o pegar
-    imágenes; atajos de teclado.
+  - Lienzo con manijas para mover, escalar y girar; **selección múltiple**
+    arrastrando un recuadro sobre el fondo (o Shift+clic) y **grupos** (Ctrl+G)
+    que se mueven, escalan y giran juntos; zoom; arrastrar o pegar imágenes;
+    atajos de teclado.
   - Vista previa con la **pieza a tamaño real y sus medidas**, la **sombra
     proyectada** (el mouse mueve la luz) y el **tapete** de la cortadora con
     avisos (piezas sueltas, detalles finos).

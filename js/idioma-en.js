@@ -497,6 +497,28 @@ export const EN = {
   'Listo: agregué {n} uniones y ahora todo es una sola pieza. Si alguna molesta, movela o borrala.': 'Done: I added {n} bridges and now everything is a single piece. If one is in the way, move or delete it.',
   'Quité {n} uniones automáticas': 'Removed {n} automatic bridges',
 
+  // --- selección múltiple y grupos
+  '{n} elemento': '{n} element',
+  '{n} elementos': '{n} elements',
+  'arrastrá para mover · Ctrl+G agrupa': 'drag to move · Ctrl+G groups',
+  'Clic en un elemento para editarlo · arrastrá sobre el fondo para seleccionar varios': 'Click an element to edit it · drag on the background to select several',
+  '{n} elementos seleccionados': '{n} elements selected',
+  'grupo {n}': 'group {n}',
+  'grupo': 'group',
+  'Seleccioná al menos dos elementos (arrastrá un recuadro sobre el fondo o usá Shift+clic)': 'Select at least two elements (drag a box on the background or use Shift+click)',
+  'Agrupados: ahora se mueven, giran y escalan juntos. Ctrl+Shift+G para desagrupar.': 'Grouped: now they move, rotate and scale together. Ctrl+Shift+G to ungroup.',
+  'Desagrupados': 'Ungrouped',
+  'Seleccioná un elemento en el lienzo (o en la lista de capas) para ajustarlo. Para elegir varios, arrastrá un recuadro sobre el fondo o usá Shift+clic.': 'Select an element on the canvas (or in the layer list) to adjust it. To pick several, drag a box on the background or use Shift+click.',
+  'Arrastrá cualquiera para mover todos; las manijas del recuadro escalan y giran el conjunto.': 'Drag any of them to move all; the box handles scale and rotate the set.',
+  'Desagrupar': 'Ungroup',
+  'Agrupar': 'Group',
+  '▭ Seleccionar todo': '▭ Select all',
+  '🔗 Agrupar': '🔗 Group',
+  '✂ Desagrupar': '✂ Ungroup',
+  '⧉ Duplicar': '⧉ Duplicate',
+  '🗑 Eliminar': '🗑 Delete',
+  '<b>Trucos:</b> arrastrá sobre el fondo para <b>seleccionar varios</b> (o <kbd>Shift</kbd>+clic) · <kbd>Ctrl+G</kbd> los <b>agrupa</b> para que se muevan juntos · <kbd>Supr</kbd> borra · <kbd>Ctrl+Z</kbd> deshace · <kbd>Ctrl+D</kbd> duplica · flechas mueven de a poquito · podés <b>arrastrar</b> una foto desde tu escritorio al lienzo o <b>pegarla</b> con <kbd>Ctrl+V</kbd>.': '<b>Tricks:</b> drag on the background to <b>select several</b> (or <kbd>Shift</kbd>+click) · <kbd>Ctrl+G</kbd> <b>groups</b> them so they move together · <kbd>Del</kbd> deletes · <kbd>Ctrl+Z</kbd> undoes · <kbd>Ctrl+D</kbd> duplicates · arrow keys nudge · you can <b>drag</b> a photo from your desktop onto the canvas or <b>paste</b> it with <kbd>Ctrl+V</kbd>.',
+
   // --- model names (render.js)
   'Bangers (cómic)': 'Bangers (comic)',
   'Bebas Neue (condensada)': 'Bebas Neue (condensed)',

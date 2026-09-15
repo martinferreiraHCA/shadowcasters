@@ -9,7 +9,9 @@ láser**. Inspirado en [Shadow Scenes](https://k12maker.mit.edu/project/shadow-s
 (MIT K12 Maker) y en la página *Sombras recortadas* del
 [Generador de Actividades](https://martinferreirahca.github.io/actividadesplataforma/sombras.html).
 
-Interfaz en **español** (principal) e **inglés** (botón ES / EN).
+Interfaz en **español** (principal) e **inglés** (botón ES / EN). Adaptable a
+tablets y celulares: en pantallas angostas el lienzo, la vista previa y el
+panel de elementos se apilan, y las manijas responden al dedo.
 
 ## Qué hay
 

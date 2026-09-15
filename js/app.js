@@ -124,7 +124,7 @@ function manijasGrupo(caja) {
   return lista;
 }
 function manijaGrupoEn(caja, p) {
-  const rad = 11 / pxPorMm;
+  const rad = radioManija / pxPorMm;
   for (const m of manijasGrupo(caja)) if (Math.hypot(m.p.x - p.x, m.p.y - p.y) <= rad) return m;
   return null;
 }
@@ -230,8 +230,9 @@ function manijas(capa) {
   lista.push({ tipo: 'rotar', p: deLocal(capa, { x: 0, y: -c.h / 2 - 26 / pxPorMm }) });
   return lista;
 }
+let radioManija = 11;   // px; más grande cuando se toca con el dedo
 function manijaEn(capa, p) {
-  const rad = 11 / pxPorMm;
+  const rad = radioManija / pxPorMm;
   for (const m of manijas(capa)) if (Math.hypot(m.p.x - p.x, m.p.y - p.y) <= rad) return m;
   return null;
 }
@@ -341,6 +342,7 @@ function dibujarLienzo() {
 // --- interacción con el mouse / dedo
 canvas.addEventListener('pointerdown', e => {
   if (e.button !== 0 && e.pointerType === 'mouse') return;
+  radioManija = e.pointerType === 'touch' ? 20 : 11;
   zona.focus({ preventScroll: true });
   const p = puntoDeEvento(e);
   canvas.setPointerCapture(e.pointerId);
@@ -565,8 +567,10 @@ document.addEventListener('paste', e => {
 });
 
 new ResizeObserver(() => { redibujarLienzo(); redibujarEscenario(); }).observe(zona);
+window.matchMedia('(max-width: 980px)').addEventListener('change', () => setTimeout(() => { redibujarLienzo(); redibujarEscenario(); actualizarCategoriaActiva(); }, 80));
 // el taller ocupa la pantalla entera: nada debe desplazar el documento
-window.addEventListener('scroll', () => { if (document.body.dataset.pantalla !== 'portal' && (window.scrollX || window.scrollY)) window.scrollTo(0, 0); }, { passive: true });
+const apilado = () => window.matchMedia('(max-width: 980px)').matches;
+window.addEventListener('scroll', () => { if (!apilado() && document.body.dataset.pantalla !== 'portal' && (window.scrollX || window.scrollY)) window.scrollTo(0, 0); }, { passive: true });
 
 // ------------------------------------------------------------------
 // Escenario (previsualización): pieza | sombra | tapete
@@ -1296,7 +1300,10 @@ function armarCategorias() {
 function irACategoria(id) {
   const paleta = $('paleta');
   const h = paleta.querySelector(`[data-cat="${id}"]`);
-  if (h) paleta.scrollTo({ top: Math.max(0, h.offsetTop - 8), behavior: 'smooth' });
+  if (h) {
+    if (apilado()) { const y = h.getBoundingClientRect().top + window.scrollY - 100; window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' }); }
+    else paleta.scrollTo({ top: Math.max(0, h.offsetTop - 8), behavior: 'smooth' });
+  }
   $('categorias').querySelectorAll('.categoria').forEach(b => b.classList.toggle('categoria--activa', b.dataset.cat === id));
 }
 function actualizarCategoriaActiva() {

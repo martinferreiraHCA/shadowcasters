@@ -10,6 +10,7 @@
 // camino de los archivos .json (exportar / importar).
 
 import { t } from './i18n.js';
+import { aplicarConfigPieza } from './render.js';
 
 const PREFIJO_PEER = 'shadowcasters-';
 const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0/O ni 1/I
@@ -148,7 +149,7 @@ export function hospedarAula(aula, alEvento) {
           if (previa && previa !== conn && previa.open) { try { previa.send({ t: 'rechazo', motivo: t('Entraste desde otra computadora: esta sesión se cerró.') }); previa.close(); } catch (_) {} }
           conexiones.set(clave, conn);
           const e = estudiante(clave, String(msg.nombre).trim().slice(0, 40), { clienteId: msg.clienteId, conectado: true, ultimaConexion: Date.now() });
-          conn.send({ t: 'bienvenido', aula: { nombre: aula.nombre, codigo: aula.codigo }, proyecto: e.proyecto || null });
+          conn.send({ t: 'bienvenido', aula: { nombre: aula.nombre, codigo: aula.codigo }, proyecto: e.proyecto || null, config: aula.config || null });
           await guardar();
           emitir('estudiante', { clave, estudiante: e });
         } else if (msg.t === 'proyecto') {
@@ -229,13 +230,27 @@ export function hospedarAula(aula, alEvento) {
     difundir(texto) {
       for (const c of conexiones.values()) { if (c.open) { try { c.send({ t: 'mensaje', texto }); } catch (_) {} } }
     },
+    // configuración de pieza para toda la clase: se guarda en el aula (la
+    // reciben también los que entren después), se aplica a los diseños ya
+    // guardados sin tocar sus capas y se manda a los conectados
+    async configurar(config) {
+      aula.config = Object.assign({}, config, { enviada: Date.now() });
+      for (const e of Object.values(aula.estudiantes)) {
+        if (e.proyecto && aplicarConfigPieza(e.proyecto, aula.config.pieza)) e.proyecto.configAplicada = aula.config.enviada;
+      }
+      await guardar();
+      let n = 0;
+      for (const c of conexiones.values()) { if (c.open) { try { c.send({ t: 'config', config: aula.config }); n++; } catch (_) {} } }
+      emitir('estudiante', { clave: null, estudiante: null });
+      return n;
+    },
     async renombrar(nombre) { aula.nombre = nombre; await guardar(); },
     guardar
   };
 }
 
 function limpiarAula(aula) {
-  const copia = { codigo: aula.codigo, nombre: aula.nombre, creada: aula.creada, actualizada: aula.actualizada, estudiantes: {} };
+  const copia = { codigo: aula.codigo, nombre: aula.nombre, creada: aula.creada, actualizada: aula.actualizada, config: aula.config || null, estudiantes: {} };
   for (const [k, e] of Object.entries(aula.estudiantes)) {
     const resto = {};
     for (const [ck, cv] of Object.entries(e)) if (ck !== 'conectado' && !ck.startsWith('_')) resto[ck] = cv;
@@ -282,6 +297,7 @@ export function entrarAula(codigo, nombre, alEvento) {
         if (msg.t === 'bienvenido') emitir('bienvenido', { aula: msg.aula, proyecto: msg.proyecto || null });
         else if (msg.t === 'proyecto') emitir('proyecto', { proyecto: msg.proyecto || null });
         else if (msg.t === 'mensaje') emitir('mensaje', { texto: msg.texto });
+        else if (msg.t === 'config') emitir('config', { config: msg.config || null });
         else if (msg.t === 'rechazo') { cerrado = true; estado = 'rechazado'; emitir('estado', { estado, detalle: msg.motivo }); try { peer.destroy(); } catch (_) {} }
       });
       conn.on('close', () => { if (cerrado) return; estado = 'desconectado'; emitir('estado', { estado }); programar(); });

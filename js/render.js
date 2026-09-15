@@ -81,6 +81,7 @@ export function nuevoProyecto(datos) {
       base: { anchoMm: 60, altoMm: 15 },
       marco: { grosorMm: 6 },
       ventana: { radioMm: 6 },
+      bordes: { activo: false, grosorMm: 6, arriba: true, abajo: true, izquierda: true, derecha: true },
       espejo: false
     },
     capas: []
@@ -120,6 +121,7 @@ export function normalizarProyecto(p) {
   out.pieza.base = Object.assign({ anchoMm: 60, altoMm: 15 }, out.pieza.base || {});
   out.pieza.marco = Object.assign({ grosorMm: 6 }, out.pieza.marco || {});
   out.pieza.ventana = Object.assign({ radioMm: 6 }, out.pieza.ventana || {});
+  out.pieza.bordes = Object.assign({ activo: false, grosorMm: 6, arriba: true, abajo: true, izquierda: true, derecha: true }, out.pieza.bordes || {});
   out.capas = (Array.isArray(out.capas) ? out.capas : []).map(c => {
     const n = nuevaCapa(c.tipo || 'forma');
     const m = Object.assign(n, c);
@@ -546,6 +548,10 @@ export function componerPieza(proyecto, pxPorMm, opciones) {
       ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.rect(g, g, w - 2 * g, h - 2 * g); ctx.fill('evenodd');
     }
   }
+  // marco negro por lados (independiente del tipo de pieza)
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000';
+  for (const r of rectanglesBordes(pz, w, h, pxPorMm)) ctx.fillRect(r[0], r[1], r[2], r[3]);
   if (op.conEspejo && pz.espejo) {
     const e = document.createElement('canvas');
     e.width = w; e.height = h;
@@ -554,6 +560,29 @@ export function componerPieza(proyecto, pxPorMm, opciones) {
     return e;
   }
   return cv;
+}
+
+// Rectángulos [x, y, w, h] (px) del marco negro por lados, si está activo.
+export function rectanglesBordes(pz, w, h, pxPorMm) {
+  const b = pz.bordes;
+  if (!b || !b.activo) return [];
+  const g = Math.min(w / 2, h / 2, Math.max(0, b.grosorMm || 0) * pxPorMm);
+  const lista = [];
+  if (b.arriba) lista.push([0, 0, w, g]);
+  if (b.abajo) lista.push([0, h - g, w, g]);
+  if (b.izquierda) lista.push([0, 0, g, h]);
+  if (b.derecha) lista.push([w - g, 0, g, h]);
+  return lista;
+}
+
+// Aplica al proyecto una configuración de pieza (la que manda el docente a
+// toda la clase) sin tocar las capas. cfg: subconjunto de `pieza`.
+export function aplicarConfigPieza(proyecto, cfg) {
+  if (!cfg || !proyecto || !proyecto.pieza) return false;
+  const pz = proyecto.pieza;
+  for (const k of ['anchoMm', 'altoMm', 'tipo', 'espejo']) if (cfg[k] != null) pz[k] = cfg[k];
+  for (const k of ['base', 'marco', 'ventana', 'bordes']) if (cfg[k]) pz[k] = Object.assign({}, pz[k] || {}, cfg[k]);
+  return true;
 }
 
 // Binariza la pieza compuesta y la vectoriza. Devuelve todo lo que hace

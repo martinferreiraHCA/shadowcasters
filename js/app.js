@@ -9,7 +9,7 @@ import {
   nuevoProyecto, nuevaCapa, clonar, normalizarProyecto, FUENTES, FORMAS, TIPOS_PIEZA,
   cargarFuente, leerArchivoImagen, asegurarImagen, colorEnImagen, fraccionFigura,
   pathDeForma, cajaCapa, componerCapas, componerPieza, prepararProyecto,
-  vectorizarProyecto, pngDeProyecto, nombreArchivo
+  vectorizarProyecto, pngDeProyecto, nombreArchivo, rectanglesBordes, aplicarConfigPieza
 } from './render.js';
 import { cajaGlobal } from './vector.js';
 import { t, alCambiarIdioma } from './i18n.js';
@@ -248,6 +248,8 @@ function dibujarLienzo() {
   } else if (pz.tipo === 'ventana') {
     ctx.fillRect(origen.x, origen.y, wPx, hPx);
   }
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  for (const r of rectanglesBordes(pz, wPx, hPx, pxPorMm)) ctx.fillRect(origen.x + r[0], origen.y + r[1], r[2], r[3]);
   ctx.restore();
 
   // capas con colores: negro suma, rojo resta
@@ -1044,6 +1046,14 @@ function panelPieza() {
   if (pz.tipo === 'ventana') filas += fila(t('Esquinas redondeadas'), ctlNum('pieza.ventana.radioMm', pz.ventana.radioMm, 0, 60, 1, 'mm'));
   filas += filaLibre('', ctlCheck('pieza.espejo', pz.espejo, t('Espejar para vinilo termoadhesivo')));
   html += grupo(t('Medidas y tipo'), filas);
+  const b = pz.bordes;
+  filas = filaLibre('', ctlCheck('pieza.bordes.activo', b.activo, t('Marco negro en los bordes de la pieza')));
+  if (b.activo) {
+    filas += fila(t('Grosor del marco'), ctlNum('pieza.bordes.grosorMm', b.grosorMm, 1, 60, 0.5, 'mm'));
+    filas += `<div class="ajuste"><span class="ajuste__et">${t('Lados')}</span><div class="lados">${ctlCheck('pieza.bordes.arriba', b.arriba, t('arriba'))}${ctlCheck('pieza.bordes.abajo', b.abajo, t('abajo'))}${ctlCheck('pieza.bordes.izquierda', b.izquierda, t('izquierda'))}${ctlCheck('pieza.bordes.derecha', b.derecha, t('derecha'))}</div></div>`;
+    filas += `<p class="panel__nota">${t('El marco se corta junto con el diseño: lo que lo toca queda unido en una sola pieza.')}</p>`;
+  }
+  html += grupo(t('Marco'), filas);
   return html;
 }
 
@@ -1393,6 +1403,16 @@ export const editor = {
   estadoGuardado,
   toast,
   abrirTutorial: () => abrirModal($('modalAyuda')),
+  // configuración de pieza mandada por el docente: se aplica sin tocar las capas
+  aplicarConfig(config) {
+    if (!config || !config.pieza) return false;
+    if (config.enviada && estado.proyecto.configAplicada === config.enviada) return false;
+    anotar();
+    aplicarConfigPieza(estado.proyecto, config.pieza);
+    estado.proyecto.configAplicada = config.enviada || Date.now();
+    cambio(true);
+    return true;
+  },
   bloquearAutor(si) { $('autorProyecto').readOnly = !!si; $('autorProyecto').classList.toggle('menu__nombre--fijo', !!si); }
 };
 

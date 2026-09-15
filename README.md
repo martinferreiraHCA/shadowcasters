@@ -21,7 +21,10 @@ Interfaz en **español** (principal) e **inglés** (botón ES / EN).
     pestañas), comparte el código o el enlace, ve los diseños de todos **en
     tiempo real**, los abre para retocarlos, descarga SVG por estudiante o arma
     un **tapete de 12 × 12"** con los marcados, manda mensajes, exporta/importa la
-    clase o los `.json` de estudiantes.
+    clase o los `.json` de estudiantes. Además puede mandar una **configuración
+    de la pieza para toda la clase** (tamaño, tipo, marco, espejo): se aplica
+    sola al diseño de cada estudiante, conectado o que entre después, sin tocar
+    lo que está dibujando.
   - *Diseñar por mi cuenta*: sin clase; se guarda en el navegador.
   - *Mis proyectos en esta computadora*: galería con miniaturas para seguir donde
     se dejó.
@@ -29,7 +32,8 @@ Interfaz en **español** (principal) e **inglés** (botón ES / EN).
   - Panel por categoría: Imágenes (subir / cámara, quitar fondo, silueta),
     Texto (galería de tipografías, tamaño, espaciado), Formas (galería con el
     dibujo de cada forma), Ajustar (suma/resta, centrar, espejar, orden), Pieza
-    (tamaño en mm, base/marco/ventana, espejo) y Cortar (tapete, SVG, PNG,
+    (tamaño en mm, base/marco/ventana, **marco negro por lados** con su grosor,
+    espejo) y Cortar (tapete, SVG, PNG,
     guardar/abrir `.json`). Los elementos se tocan o se **arrastran al lienzo**;
     los ajustes del elemento seleccionado aparecen como controles comunes.
   - Lienzo con manijas para mover, escalar y girar; zoom; arrastrar o pegar

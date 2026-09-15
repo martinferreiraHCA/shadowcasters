@@ -13,7 +13,7 @@
 import { editor } from './app.js';
 import { almacen, nuevaAula, hospedarAula, entrarAula, normalizarCodigo, claveNombre } from './aula.js';
 import { t, establecerIdioma, idiomaGuardado, alCambiarIdioma, fecha, hora } from './i18n.js';
-import { nuevoProyecto, normalizarProyecto, prepararProyecto, miniaturaDeProyecto, vectorizarProyecto, nombreArchivo } from './render.js';
+import { nuevoProyecto, normalizarProyecto, prepararProyecto, miniaturaDeProyecto, vectorizarProyecto, nombreArchivo, TIPOS_PIEZA } from './render.js';
 import { svgTapete } from './vector.js';
 
 const $ = id => document.getElementById(id);
@@ -230,6 +230,7 @@ async function entrarComoEstudiante(codigo, nombre, proyectoLocal) {
         cliente.enviarProyecto(mio, miniaturaDeProyecto(mio, 160));
         toast(t('¡Hola {nombre}! Estás en la clase «{clase}».', { nombre: nombre.split(' ')[0], clase: d.aula && d.aula.nombre || cod }), 3500);
       }
+      if (d.config) setTimeout(() => aplicarConfigDocente(d.config), 600);
     } else if (tipo === 'proyecto') {
       if (!d.proyecto) return;
       const p = normalizarProyecto(d.proyecto);
@@ -241,10 +242,30 @@ async function entrarComoEstudiante(codigo, nombre, proyectoLocal) {
       toast(t('El docente retocó tu diseño: acá está la versión nueva.'), 5000);
     } else if (tipo === 'mensaje') {
       toast('📣 ' + t('Docente:') + ' ' + d.texto, 8000);
+    } else if (tipo === 'config') {
+      aplicarConfigDocente(d.config);
     }
   });
   estado.cliente = cliente;
   cliente.conectar();
+}
+
+// El docente mandó una configuración de pieza: se aplica al diseño actual sin
+// tocar las capas (y sólo una vez por envío).
+function aplicarConfigDocente(config) {
+  if (!config || !config.pieza) return;
+  if (editor.aplicarConfig(config)) {
+    editor.guardarAhora();
+    toast('⚙ ' + t('El docente configuró la pieza para toda la clase: {resumen}. Tu diseño sigue igual.', { resumen: resumenConfig(config.pieza) }), 7000);
+  }
+}
+function resumenConfig(pz) {
+  const partes = [];
+  if (pz.anchoMm && pz.altoMm) partes.push(`${pz.anchoMm} × ${pz.altoMm} mm`);
+  if (pz.tipo) partes.push(t((TIPOS_PIEZA.find(x => x.id === pz.tipo) || {}).nombre || pz.tipo).toLowerCase());
+  if (pz.bordes && pz.bordes.activo) partes.push(t('marco de {g} mm', { g: pz.bordes.grosorMm }));
+  if (pz.espejo) partes.push(t('espejada'));
+  return partes.join(' · ');
 }
 
 // ------------------------------------------------------------------
@@ -301,7 +322,64 @@ function renderPanel() {
   renderPestanas();
   if (!estado.claseActiva) { $('claseAbierta').innerHTML = `<div class="docente__vacio"><p>${t('No hay ninguna clase abierta.')}</p></div>`; return; }
   renderCabecera();
+  renderConfig();
   renderEstudiantes();
+}
+
+// Configuración de pieza para toda la clase (la forma se arma al cambiar de
+// clase, no en cada evento, para no pisar lo que el docente está escribiendo).
+function renderConfig() {
+  const cod = estado.claseActiva, host = estado.hosts.get(cod);
+  const det = $('claseConfig');
+  if (!host || !det) return;
+  if (det.dataset.clase === cod) return;
+  det.dataset.clase = cod;
+  const c = (host.aula.config && host.aula.config.pieza) || {};
+  const b = Object.assign({ activo: false, grosorMm: 6, arriba: true, abajo: true, izquierda: true, derecha: true }, c.bordes || {});
+  const presets = [{ id: '', nombre: t('— elegir —') }, { id: '100x100', nombre: '10 × 10 cm' }, { id: '120x120', nombre: '12 × 12 cm' }, { id: '150x150', nombre: '15 × 15 cm' }, { id: '200x150', nombre: '20 × 15 cm' }, { id: '200x200', nombre: '20 × 20 cm' }, { id: '148x210', nombre: 'A5 (14,8 × 21 cm)' }, { id: '290x290', nombre: t('Tapete entero (29 × 29 cm)') }];
+  const sel = (n, v, lista) => `<select name="${n}">${lista.map(o => `<option value="${o.id}" ${String(o.id) === String(v) ? 'selected' : ''}>${escapar(o.nombre)}</option>`).join('')}</select>`;
+  const chk = (n, v, texto) => `<label class="config__check"><input type="checkbox" name="${n}" ${v ? 'checked' : ''}> ${texto}</label>`;
+  det.innerHTML = `
+    <summary>⚙ ${t('Configuración de la pieza para toda la clase')}${host.aula.config && host.aula.config.enviada ? ` <small>${t('última enviada {hora}', { hora: hora(host.aula.config.enviada) })}</small>` : ''}</summary>
+    <p class="clase__ayuda">${t('Se aplica automáticamente al diseño de cada estudiante (a los conectados ahora y a los que entren después) sin tocar lo que están dibujando: cambia sólo la hoja, el tipo de pieza, el marco y el espejo.')}</p>
+    <form class="config" data-config>
+      <label><span>${t('Tamaño rápido')}</span>${sel('preset', c.anchoMm && c.altoMm ? `${c.anchoMm}x${c.altoMm}` : '', presets)}</label>
+      <label><span>${t('Ancho')} (mm)</span><input type="number" name="anchoMm" min="10" max="300" step="1" value="${c.anchoMm || 120}"></label>
+      <label><span>${t('Alto')} (mm)</span><input type="number" name="altoMm" min="10" max="300" step="1" value="${c.altoMm || 120}"></label>
+      <label><span>${t('Tipo de pieza')}</span>${sel('tipo', c.tipo || 'silueta', TIPOS_PIEZA.map(x => ({ id: x.id, nombre: t(x.nombre) })))}</label>
+      <div class="config__marco">
+        ${chk('bordesActivo', b.activo, `<b>${t('Marco negro en los bordes')}</b>`)}
+        <label><span>${t('Grosor')} (mm)</span><input type="number" name="grosorMm" min="1" max="60" step="0.5" value="${b.grosorMm}"></label>
+        <span class="config__lados">${chk('arriba', b.arriba, t('arriba'))}${chk('abajo', b.abajo, t('abajo'))}${chk('izquierda', b.izquierda, t('izquierda'))}${chk('derecha', b.derecha, t('derecha'))}</span>
+      </div>
+      ${chk('espejo', !!c.espejo, t('Espejar para vinilo termoadhesivo'))}
+      <button type="submit" class="btn-panel btn-panel--primario">📐 ${t('Aplicar a todos ahora')}</button>
+    </form>`;
+  det.querySelector('[name="preset"]').addEventListener('change', e => {
+    if (!e.target.value) return;
+    const [w, h] = e.target.value.split('x');
+    det.querySelector('[name="anchoMm"]').value = w; det.querySelector('[name="altoMm"]').value = h;
+  });
+  det.querySelector('[data-config]').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const num = (k, min, max, def) => { const v = parseFloat(f.get(k)); return Number.isNaN(v) ? def : Math.min(max, Math.max(min, v)); };
+    const config = { pieza: {
+      anchoMm: num('anchoMm', 10, 300, 120), altoMm: num('altoMm', 10, 300, 120), tipo: f.get('tipo') || 'silueta', espejo: f.get('espejo') === 'on',
+      bordes: { activo: f.get('bordesActivo') === 'on', grosorMm: num('grosorMm', 1, 60, 6), arriba: f.get('arriba') === 'on', abajo: f.get('abajo') === 'on', izquierda: f.get('izquierda') === 'on', derecha: f.get('derecha') === 'on' }
+    } };
+    const n = await host.configurar(config);
+    // miniaturas al día también para los que no están conectados
+    for (const e of Object.values(host.aula.estudiantes)) {
+      if (!e.proyecto) continue;
+      try { const p = normalizarProyecto(e.proyecto); await prepararProyecto(p); e.miniatura = miniaturaDeProyecto(p, 160); } catch (_) { /* sin miniatura */ }
+    }
+    await host.guardar();
+    det.dataset.clase = '';
+    renderConfig();
+    renderEstudiantes();
+    toast(t('Configuración aplicada: {resumen}. Enviada a {n} estudiantes conectados; los demás la reciben al entrar.', { resumen: resumenConfig(config.pieza), n }), 7000);
+  });
 }
 
 function renderPestanas() {
@@ -357,8 +435,10 @@ function renderCabecera() {
     $('claseAbierta').innerHTML = `
       <div class="clase__cab"></div>
       <div class="clase__acciones"></div>
+      <details class="clase__config" id="claseConfig"></details>
       <div class="clase__estudiantes" id="gridEstudiantes"></div>
       <p class="clase__vacio" id="claseVacia"></p>`;
+    renderConfig();
     cab = $('claseAbierta').querySelector('.clase__cab');
   }
   cab.innerHTML = `

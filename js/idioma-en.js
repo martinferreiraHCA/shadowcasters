@@ -468,6 +468,22 @@ export const EN = {
   'Desde el panel de la izquierda subí una <b>foto</b> o un dibujo (le sacamos el fondo), escribí tu <b>nombre</b> y tirá <b>formas</b> al lienzo. Movelas, agrandalas y giralas con el mouse.': 'From the left panel upload a <b>photo</b> or a drawing (we remove the background), write your <b>name</b> and drop <b>shapes</b> onto the canvas. Move, resize and rotate them with the mouse.',
   'A la derecha ves la <b>pieza</b> a tamaño real y sus medidas. Con la pestaña <b>Sombra</b> ves cómo se proyecta con una luz: movés el mouse por la vista previa y la luz se mueve.': 'On the right you see the <b>piece</b> at real size with its measurements. The <b>Shadow</b> tab shows how it is cast with a light: move the mouse over the preview and the light moves.',
 
+  // --- marco y configuración de la clase
+  'Marco negro en los bordes de la pieza': 'Black frame on the edges of the piece',
+  'Lados': 'Sides',
+  'arriba': 'top',
+  'abajo': 'bottom',
+  'El marco se corta junto con el diseño: lo que lo toca queda unido en una sola pieza.': 'The frame is cut together with the design: whatever touches it stays joined as one piece.',
+  'Marco': 'Frame',
+  'El docente configuró la pieza para toda la clase: {resumen}. Tu diseño sigue igual.': 'The teacher configured the piece for the whole class: {resumen}. Your design stays the same.',
+  'marco de {g} mm': '{g} mm frame',
+  'Configuración de la pieza para toda la clase': 'Piece configuration for the whole class',
+  'última enviada {hora}': 'last sent {hora}',
+  'Se aplica automáticamente al diseño de cada estudiante (a los conectados ahora y a los que entren después) sin tocar lo que están dibujando: cambia sólo la hoja, el tipo de pieza, el marco y el espejo.': 'It is applied automatically to every student’s design (those connected now and those who join later) without touching what they are drawing: it only changes the sheet, the piece type, the frame and the mirror.',
+  'Marco negro en los bordes': 'Black frame on the edges',
+  'Aplicar a todos ahora': 'Apply to everyone now',
+  'Configuración aplicada: {resumen}. Enviada a {n} estudiantes conectados; los demás la reciben al entrar.': 'Configuration applied: {resumen}. Sent to {n} connected students; the rest get it when they join.',
+
   // --- model names (render.js)
   'Bangers (cómic)': 'Bangers (comic)',
   'Bebas Neue (condensada)': 'Bebas Neue (condensed)',

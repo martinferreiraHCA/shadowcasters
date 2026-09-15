@@ -603,6 +603,17 @@ body[data-modo="docente"] #btnGuardarJson, body[data-modo="docente"] #estadoGuar
 .btn-panel--peligro { color: #b91c1c; margin-left: auto; }
 .clase__mensaje { display: inline-flex; gap: 0.3rem; align-items: center; flex: 1; min-width: 240px; }
 .clase__mensaje input { flex: 1; border: 1px solid var(--borde); border-radius: 999px; padding: 0.4rem 0.8rem; }
+.clase__config { border: 1px solid var(--borde); border-radius: 12px; padding: 0.5rem 0.8rem; margin-bottom: 0.9rem; background: #FFF8EE; }
+.clase__config summary { cursor: pointer; font-weight: 800; color: var(--texto-oscuro); }
+.clase__config summary small { font-weight: 500; color: var(--texto); margin-left: 0.4rem; }
+.config { display: flex; flex-wrap: wrap; gap: 0.6rem 0.9rem; align-items: flex-end; margin-top: 0.5rem; }
+.config label { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.72rem; font-weight: 700; color: var(--texto); }
+.config input[type="number"], .config select { border: 1px solid var(--borde); border-radius: 8px; padding: 0.35rem 0.5rem; font-weight: 600; color: var(--texto-oscuro); background: var(--blanco); min-width: 90px; }
+.config__check { flex-direction: row !important; align-items: center; gap: 0.35rem !important; }
+.config__check input { accent-color: var(--azul); width: 16px; height: 16px; margin: 0; }
+.config__marco { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: flex-end; flex-basis: 100%; padding: 0.5rem 0.6rem; background: var(--blanco); border: 1px dashed var(--borde); border-radius: 10px; }
+.config__lados { display: inline-flex; gap: 0.6rem; flex-wrap: wrap; }
+.lados { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; }
 .clase__estudiantes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.8rem; }
 .clase__vacio { text-align: center; color: var(--texto); padding: 1.5rem; font-size: 0.85rem; }
 .estudiante { position: relative; border: 2px solid var(--borde); border-radius: 14px; padding: 0.6rem; background: #fbfbfd; display: flex; flex-direction: column; gap: 0.35rem; }
